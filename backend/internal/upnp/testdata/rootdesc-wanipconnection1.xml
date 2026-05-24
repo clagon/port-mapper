@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<root>
+  <device>
+    <serviceList>
+      <service>
+        <serviceType>urn:schemas-upnp-org:service:WANIPConnection:1</serviceType>
+        <controlURL>/upnp/control/WANIPConn1</controlURL>
+      </service>
+    </serviceList>
+  </device>
+</root>

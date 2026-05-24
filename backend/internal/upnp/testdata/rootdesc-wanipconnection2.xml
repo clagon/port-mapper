@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<root>
+  <device>
+    <serviceList>
+      <service>
+        <serviceType>urn:schemas-upnp-org:service:WANPPPConnection:1</serviceType>
+        <controlURL>/ppp/control/WANPPPConn1</controlURL>
+      </service>
+      <service>
+        <serviceType>urn:schemas-upnp-org:service:WANIPConnection:2</serviceType>
+        <controlURL>/upnp/control/WANIPConn2</controlURL>
+      </service>
+    </serviceList>
+  </device>
+</root>
