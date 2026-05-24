@@ -1,8 +1,6 @@
 package server
 
-import (
-	"net/http"
-)
+import "net/http"
 
 // Server wraps the HTTP handler used by the application.
 type Server struct {
