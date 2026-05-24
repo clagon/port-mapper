@@ -19,18 +19,18 @@ type BrowserOpener interface {
 
 // AppOptions configures a new App.
 type AppOptions struct {
-	ListenAddr   string
-	ConfigPath   string
-	OpenBrowser  bool
+	ListenAddr    string
+	ConfigPath    string
+	OpenBrowser   bool
 	BrowserOpener BrowserOpener
 }
 
 // App is the top-level application container.
 type App struct {
-	cfg          config.Config
-	server       *server.Server
-	configPath   string
-	openBrowser  bool
+	cfg           config.Config
+	server        *server.Server
+	configPath    string
+	openBrowser   bool
 	browserOpener BrowserOpener
 }
 
@@ -102,7 +102,17 @@ func (a *App) Run() error {
 	if a == nil || a.server == nil {
 		return nil
 	}
-	return a.server.ListenAndServe()
+	ln, err := net.Listen("tcp", a.server.Addr())
+	if err != nil {
+		return err
+	}
+	if a.openBrowser && a.browserOpener != nil {
+		if err := a.browserOpener.Open(a.browserURL()); err != nil {
+			// Browser launch failures should not prevent the server from starting.
+			_ = err
+		}
+	}
+	return a.server.Serve(ln)
 }
 
 func (a *App) browserURL() string {

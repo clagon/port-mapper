@@ -1,6 +1,9 @@
 package server
 
-import "net/http"
+import (
+	"net"
+	"net/http"
+)
 
 // Server wraps the HTTP handler used by the application.
 type Server struct {
@@ -34,7 +37,16 @@ func (s *Server) Handler() http.Handler {
 	return s.handler
 }
 
-// ListenAndServe runs the server with the provided HTTP server.
+// ListenAndServe runs the server on its configured address.
 func (s *Server) ListenAndServe() error {
-	return http.ListenAndServe(s.addr, s.Handler())
+	ln, err := net.Listen("tcp", s.addr)
+	if err != nil {
+		return err
+	}
+	return s.Serve(ln)
+}
+
+// Serve runs the server on the provided listener.
+func (s *Server) Serve(ln net.Listener) error {
+	return http.Serve(ln, s.Handler())
 }
