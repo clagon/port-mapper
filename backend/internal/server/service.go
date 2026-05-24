@@ -4,8 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/clagon/port-mapper/backend/internal/config"
 	"github.com/clagon/port-mapper/backend/internal/upnp"
@@ -73,6 +75,7 @@ func defaultPortMapperFactory(result upnp.DiscoveryResult) PortMapper {
 	return &upnp.SOAPClient{
 		Endpoint:    result.ControlURL,
 		ServiceType: result.ServiceType,
+		HTTPClient:  &http.Client{Timeout: 5 * time.Second},
 	}
 }
 
@@ -130,6 +133,12 @@ func (s *service) status() StatusResponse {
 func (s *service) discover() (StatusResponse, error) {
 	result, err := s.discovery.Discover()
 	if err != nil {
+		if errors.Is(err, upnp.ErrNoGateway) {
+			if s.logger != nil {
+				s.logger.Info("router not discovered", "reason", err.Error())
+			}
+			return s.status(), nil
+		}
 		return StatusResponse{}, err
 	}
 

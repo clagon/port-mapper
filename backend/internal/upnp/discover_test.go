@@ -70,11 +70,24 @@ func TestParseRootDevice(t *testing.T) {
 			wantType: "urn:schemas-upnp-org:service:WANIPConnection:2",
 		},
 		{
-			name:     "wanpppconnection fallback",
-			xml:      readTestData(t, "rootdesc-wanpppconnection1.xml"),
+			name:     "nested igd tree",
+			xml:      readTestData(t, "rootdesc-nested-igd.xml"),
 			baseURL:  "http://192.168.1.1:1900/root.xml",
-			wantURL:  "http://192.168.1.1:1900/ppp/control/WANPPPConn1",
-			wantType: "urn:schemas-upnp-org:service:WANPPPConnection:1",
+			wantURL:  "http://192.168.1.1:1900/upnp/control/WANIPConn2",
+			wantType: "urn:schemas-upnp-org:service:WANIPConnection:2",
+		},
+		{
+			name:     "absolute same-host control url is allowed",
+			xml:      readTestData(t, "rootdesc-absolute-controlurl.xml"),
+			baseURL:  "http://192.168.1.1:1900/root.xml",
+			wantURL:  "http://192.168.1.1:1900/upnp/control/WANIPConn2",
+			wantType: "urn:schemas-upnp-org:service:WANIPConnection:2",
+		},
+		{
+			name:    "absolute different-host control url is rejected",
+			xml:     readTestData(t, "rootdesc-malicious-controlurl.xml"),
+			baseURL: "http://192.168.1.1:1900/root.xml",
+			wantErr: true,
 		},
 		{
 			name:    "malformed xml",

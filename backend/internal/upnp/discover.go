@@ -26,6 +26,8 @@ var ssdpSearchTargets = []string{
 	"ssdp:all",
 }
 
+var ErrNoGateway = errors.New("no UPnP gateway discovered")
+
 type locationFetcher func(string) ([]byte, error)
 
 type rootDevice struct {
@@ -33,6 +35,7 @@ type rootDevice struct {
 }
 
 type device struct {
+	DeviceList  []device   `xml:"deviceList>device"`
 	ServiceList serviceList `xml:"serviceList"`
 }
 
@@ -88,7 +91,7 @@ func Discover() (DiscoveryResult, error) {
 		}
 	}
 
-	return DiscoveryResult{}, errors.New("no UPnP gateway discovered")
+	return DiscoveryResult{}, ErrNoGateway
 }
 
 func buildSSDPSearchRequest(target string) string {
@@ -164,7 +167,7 @@ func ParseRootDevice(data []byte, baseURL string) (DiscoveryResult, error) {
 		return DiscoveryResult{}, fmt.Errorf("parse root device xml: %w", err)
 	}
 
-	selected, ok := selectService(root.Device.ServiceList.Services)
+	selected, ok := selectService(collectServices(root.Device))
 	if !ok {
 		return DiscoveryResult{}, fmt.Errorf("no supported WAN service found")
 	}
@@ -178,6 +181,14 @@ func ParseRootDevice(data []byte, baseURL string) (DiscoveryResult, error) {
 		ServiceType: strings.TrimSpace(selected.ServiceType),
 		ControlURL:  resolved,
 	}, nil
+}
+
+func collectServices(dev device) []service {
+	services := append([]service{}, dev.ServiceList.Services...)
+	for _, child := range dev.DeviceList {
+		services = append(services, collectServices(child)...)
+	}
+	return services
 }
 
 func selectService(services []service) (service, bool) {
@@ -207,16 +218,26 @@ func resolveControlURL(baseURL, controlURL string) (string, error) {
 	if controlURL == "" {
 		return "", fmt.Errorf("empty control url")
 	}
-	if u, err := url.Parse(controlURL); err == nil && u.IsAbs() {
-		return controlURL, nil
-	}
 	base, err := url.Parse(baseURL)
 	if err != nil {
 		return "", fmt.Errorf("parse base url %q: %w", baseURL, err)
+	}
+	if u, err := url.Parse(controlURL); err == nil && u.IsAbs() {
+		if !sameURLHost(base, u) {
+			return "", fmt.Errorf("control url host %q does not match location host %q", u.Host, base.Host)
+		}
+		return controlURL, nil
 	}
 	ref, err := url.Parse(controlURL)
 	if err != nil {
 		return "", fmt.Errorf("parse control url %q: %w", controlURL, err)
 	}
 	return base.ResolveReference(ref).String(), nil
+}
+
+func sameURLHost(a, b *url.URL) bool {
+	if a == nil || b == nil {
+		return false
+	}
+	return strings.EqualFold(a.Host, b.Host)
 }

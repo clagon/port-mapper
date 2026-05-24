@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 )
 
 // SOAPClient performs UPnP SOAP requests against a discovered control URL.
@@ -20,7 +21,7 @@ func (c *SOAPClient) client() *http.Client {
 	if c != nil && c.HTTPClient != nil {
 		return c.HTTPClient
 	}
-	return http.DefaultClient
+	return &http.Client{Timeout: 5 * time.Second}
 }
 
 // GetExternalIPAddress fetches the public IP from the gateway.

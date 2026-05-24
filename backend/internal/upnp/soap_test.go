@@ -115,6 +115,14 @@ func TestSOAPGetExternalIPAddress(t *testing.T) {
 	}
 }
 
+func TestSOAPClientDefaultTimeout(t *testing.T) {
+	if got := (&SOAPClient{}).client(); got == nil {
+		t.Fatal("client() = nil")
+	} else if got.Timeout <= 0 {
+		t.Fatalf("client timeout = %v, want > 0", got.Timeout)
+	}
+}
+
 func TestSOAPFault(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)

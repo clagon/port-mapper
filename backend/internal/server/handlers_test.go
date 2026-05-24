@@ -169,10 +169,7 @@ func TestDiscoveryAndMappingEndpoints(t *testing.T) {
 		Description:          "test mapping",
 		LeaseDurationSeconds: 3600,
 	}
-	mappingBody, err := json.Marshal(mapping)
-	if err != nil {
-		t.Fatalf("marshal mapping: %v", err)
-	}
+	mappingBody := []byte(`{"protocol":"TCP","external_port":8080,"internal_ip":"192.168.1.20","internal_port":8080,"description":"test mapping","lease_duration_seconds":3600}`)
 
 	t.Run("status starts empty", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/status", nil)
@@ -211,6 +208,22 @@ func TestDiscoveryAndMappingEndpoints(t *testing.T) {
 		}
 		if got.ExternalIP != mapper.externalIP {
 			t.Fatalf("external_ip = %q, want %q", got.ExternalIP, mapper.externalIP)
+		}
+	})
+
+	t.Run("discover timeout is soft failure", func(t *testing.T) {
+		timeoutDiscovery := &fakeDiscovery{err: upnp.ErrNoGateway}
+		timeoutSrv := newTestServer(t, cfgPath, config.DefaultConfig(), timeoutDiscovery, &fakeMapper{})
+		req := httptest.NewRequest(http.MethodPost, "/api/discover", nil)
+		rec := httptest.NewRecorder()
+		timeoutSrv.Handler().ServeHTTP(rec, req)
+		if rec.Code != http.StatusAccepted {
+			t.Fatalf("status = %d, want %d", rec.Code, http.StatusAccepted)
+		}
+		var got StatusResponse
+		decodeJSON(t, rec.Body, &got)
+		if got.Discovered {
+			t.Fatal("discovered = true, want false")
 		}
 	})
 
