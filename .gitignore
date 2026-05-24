@@ -1,18 +1,2 @@
-# Binaries
-/backend/port-mapper
-/backend/bin/
-
-# Go
-/backend/*.test
-/backend/coverage.out
-/backend/*.out
-
-# Runtime config / local state
-/backend/config.json
-config.json
-
-# OS / editor
-.DS_Store
-Thumbs.db
-*.swp
-*.swo
+frontend/node_modules/
+frontend/dist/

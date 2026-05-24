@@ -12,5 +12,6 @@ func NewMux() http.Handler {
 	mux.HandleFunc("/api/ports/open", h.portsOpen)
 	mux.HandleFunc("/api/ports/close", h.portsClose)
 	mux.HandleFunc("/api/settings", h.settings)
+	mux.Handle("/", staticHandler())
 	return mux
 }
