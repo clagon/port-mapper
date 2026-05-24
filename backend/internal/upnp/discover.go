@@ -17,9 +17,14 @@ import (
 
 const (
 	ssdpAddress      = "239.255.255.250:1900"
-	ssdpSearchTarget = "urn:schemas-upnp-org:device:InternetGatewayDevice:1"
 	ssdpTimeout      = 3 * time.Second
 )
+
+var ssdpSearchTargets = []string{
+	"urn:schemas-upnp-org:device:InternetGatewayDevice:1",
+	"upnp:rootdevice",
+	"ssdp:all",
+}
 
 type locationFetcher func(string) ([]byte, error)
 
@@ -48,49 +53,54 @@ func Discover() (DiscoveryResult, error) {
 	}
 	defer conn.Close()
 
-	if err := conn.SetDeadline(time.Now().Add(ssdpTimeout)); err != nil {
-		return DiscoveryResult{}, fmt.Errorf("set SSDP deadline: %w", err)
-	}
-
-	search := strings.Join([]string{
-		"M-SEARCH * HTTP/1.1",
-		"HOST: 239.255.255.250:1900",
-		`MAN: "ssdp:discover"`,
-		"MX: 1",
-		"ST: " + ssdpSearchTarget,
-		"",
-		"",
-	}, "\r\n")
 	addr, err := net.ResolveUDPAddr("udp4", ssdpAddress)
 	if err != nil {
 		return DiscoveryResult{}, fmt.Errorf("resolve SSDP address: %w", err)
 	}
-	if _, err := conn.WriteTo([]byte(search), addr); err != nil {
-		return DiscoveryResult{}, fmt.Errorf("send SSDP search: %w", err)
-	}
 
 	buf := make([]byte, 65535)
-	for {
-		n, _, err := conn.ReadFrom(buf)
-		if err != nil {
-			if isTimeout(err) {
-				break
+	for _, target := range ssdpSearchTargets {
+		if err := conn.SetDeadline(time.Now().Add(ssdpTimeout)); err != nil {
+			return DiscoveryResult{}, fmt.Errorf("set SSDP deadline: %w", err)
+		}
+		if _, err := conn.WriteTo([]byte(buildSSDPSearchRequest(target)), addr); err != nil {
+			return DiscoveryResult{}, fmt.Errorf("send SSDP search: %w", err)
+		}
+
+		for {
+			n, _, err := conn.ReadFrom(buf)
+			if err != nil {
+				if isTimeout(err) {
+					break
+				}
+				return DiscoveryResult{}, fmt.Errorf("read SSDP response: %w", err)
 			}
-			return DiscoveryResult{}, fmt.Errorf("read SSDP response: %w", err)
-		}
 
-		location, err := parseSSDPResponse(buf[:n])
-		if err != nil {
-			continue
-		}
+			location, err := parseSSDPResponse(buf[:n])
+			if err != nil {
+				continue
+			}
 
-		result, err := discoverFromLocation(location, defaultLocationFetcher)
-		if err == nil {
-			return result, nil
+			result, err := discoverFromLocation(location, defaultLocationFetcher)
+			if err == nil {
+				return result, nil
+			}
 		}
 	}
 
 	return DiscoveryResult{}, errors.New("no UPnP gateway discovered")
+}
+
+func buildSSDPSearchRequest(target string) string {
+	return strings.Join([]string{
+		"M-SEARCH * HTTP/1.1",
+		"HOST: 239.255.255.250:1900",
+		`MAN: "ssdp:discover"`,
+		"MX: 1",
+		"ST: " + target,
+		"",
+		"",
+	}, "\r\n")
 }
 
 func discoverFromLocation(location string, fetch locationFetcher) (DiscoveryResult, error) {

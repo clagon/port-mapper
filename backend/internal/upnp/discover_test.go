@@ -6,8 +6,36 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
+
+func TestSSDPSearchTargets(t *testing.T) {
+	want := []string{
+		"urn:schemas-upnp-org:device:InternetGatewayDevice:1",
+		"upnp:rootdevice",
+		"ssdp:all",
+	}
+	if got := ssdpSearchTargets; len(got) != len(want) {
+		t.Fatalf("len(ssdpSearchTargets) = %d, want %d", len(got), len(want))
+	} else {
+		for i := range want {
+			if got[i] != want[i] {
+				t.Fatalf("ssdpSearchTargets[%d] = %q, want %q", i, got[i], want[i])
+			}
+		}
+	}
+}
+
+func TestBuildSSDPSearchRequest(t *testing.T) {
+	msg := buildSSDPSearchRequest("upnp:rootdevice")
+	if !strings.Contains(msg, "ST: upnp:rootdevice") {
+		t.Fatalf("search request missing ST line: %q", msg)
+	}
+	if !strings.HasSuffix(msg, "\r\n\r\n") {
+		t.Fatalf("search request should end with CRLF CRLF: %q", msg)
+	}
+}
 
 func readTestData(t *testing.T, name string) string {
 	t.Helper()
