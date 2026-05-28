@@ -1,5 +1,10 @@
 package config
 
+import (
+	"fmt"
+	"net"
+)
+
 const defaultListenAddr = "127.0.0.1:8080"
 
 // Config holds runtime settings for the backend.
@@ -29,4 +34,19 @@ func (c Config) WithDefaults() Config {
 		c.AutoDiscover = defaults.AutoDiscover
 	}
 	return c
+}
+
+// ValidateLocalListenAddr ensures the backend binds to localhost only.
+func ValidateLocalListenAddr(addr string) error {
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		return fmt.Errorf("invalid listen addr %q: %w", addr, err)
+	}
+	if host == "" {
+		return fmt.Errorf("listen addr must be local, got %q", addr)
+	}
+	if host == "localhost" || host == "127.0.0.1" || host == "::1" {
+		return nil
+	}
+	return fmt.Errorf("listen addr must bind to localhost, got %q", addr)
 }

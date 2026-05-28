@@ -55,7 +55,7 @@ func New(opts AppOptions) (*App, error) {
 	if cfg.ListenAddr == "" {
 		cfg.ListenAddr = defaultListenAddr
 	}
-	if err := validateLocalListenAddr(cfg.ListenAddr); err != nil {
+	if err := config.ValidateLocalListenAddr(cfg.ListenAddr); err != nil {
 		return nil, err
 	}
 
@@ -65,8 +65,13 @@ func New(opts AppOptions) (*App, error) {
 	}
 
 	return &App{
-		cfg:           cfg,
-		server:        server.New(cfg.ListenAddr, logger),
+		cfg: cfg,
+		server: server.New(
+			cfg.ListenAddr,
+			logger,
+			server.WithConfigPath(configPath),
+			server.WithConfig(cfg),
+		),
 		configPath:    configPath,
 		openBrowser:   opts.OpenBrowser,
 		browserOpener: opts.BrowserOpener,
@@ -119,6 +124,7 @@ func (a *App) Run() error {
 			"config_path", a.configPath,
 			"listen_addr", a.server.Addr(),
 			"auto_discover", boolValue(a.cfg.AutoDiscover),
+			"browser_open", a.openBrowser,
 		)
 	}
 	ln, err := net.Listen("tcp", a.server.Addr())
@@ -131,14 +137,22 @@ func (a *App) Run() error {
 	if a.logger != nil {
 		a.logger.Info("listening", "listen_addr", a.server.Addr())
 	}
+	if boolValue(a.cfg.AutoDiscover) {
+		go func() {
+			if a.logger != nil {
+				a.logger.Info("auto discovering router")
+			}
+			if err := a.server.Discover(); err != nil && a.logger != nil {
+				a.logger.Warn("auto discovery failed", "error", err)
+			}
+		}()
+	}
 	if a.openBrowser && a.browserOpener != nil {
 		if a.logger != nil {
 			a.logger.Info("opening browser", "url", a.browserURL())
 		}
-		if err := a.browserOpener.Open(a.browserURL()); err != nil {
-			if a.logger != nil {
-				a.logger.Warn("browser open failed", "url", a.browserURL(), "error", err)
-			}
+		if err := a.browserOpener.Open(a.browserURL()); err != nil && a.logger != nil {
+			a.logger.Warn("browser open failed", "url", a.browserURL(), "error", err)
 		}
 	}
 	if a.logger != nil {
@@ -160,20 +174,6 @@ func (a *App) browserURL() string {
 		host = "[" + host + "]"
 	}
 	return fmt.Sprintf("http://%s:%s/", host, port)
-}
-
-func validateLocalListenAddr(addr string) error {
-	host, _, err := net.SplitHostPort(addr)
-	if err != nil {
-		return fmt.Errorf("invalid listen addr %q: %w", addr, err)
-	}
-	if host == "" {
-		return fmt.Errorf("listen addr must be local, got %q", addr)
-	}
-	if host == "localhost" || host == "127.0.0.1" || host == "::1" {
-		return nil
-	}
-	return fmt.Errorf("listen addr must bind to localhost, got %q", addr)
 }
 
 func boolValue(v *bool) bool {

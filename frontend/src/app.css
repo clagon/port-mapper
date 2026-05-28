@@ -20,7 +20,8 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -72,7 +73,8 @@ button.danger:hover:not(:disabled) {
   background: #ffe4e6;
 }
 
-input {
+input,
+select {
   width: 100%;
   border: 1px solid #cbd5e1;
   border-radius: 12px;
@@ -81,7 +83,8 @@ input {
   color: #0f172a;
 }
 
-input:focus {
+input:focus,
+select:focus {
   outline: 2px solid rgba(37, 99, 235, 0.18);
   outline-offset: 2px;
   border-color: #2563eb;

@@ -2,12 +2,12 @@ package upnp
 
 // PortMapping represents a single port forwarding request.
 type PortMapping struct {
-	Protocol             string
-	ExternalPort         int
-	InternalIP           string
-	InternalPort         int
-	Description          string
-	LeaseDurationSeconds int
+	Protocol             string `json:"protocol"`
+	ExternalPort         int    `json:"external_port"`
+	InternalIP           string `json:"internal_ip"`
+	InternalPort         int    `json:"internal_port"`
+	Description          string `json:"description"`
+	LeaseDurationSeconds int    `json:"lease_duration_seconds"`
 }
 
 const MaxLeaseDurationSeconds = 7 * 24 * 60 * 60

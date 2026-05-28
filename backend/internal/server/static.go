@@ -9,33 +9,34 @@ import (
 	"time"
 
 	"github.com/clagon/port-mapper/backend/assets"
+	"github.com/labstack/echo/v4"
 )
 
 var assetsFS = assets.FS
 
-func staticHandler() http.Handler {
+func staticHandler() echo.HandlerFunc {
 	sub, err := fs.Sub(assetsFS, "static")
 	if err != nil {
-		return http.NotFoundHandler()
+		return func(c echo.Context) error {
+			return echo.NewHTTPError(http.StatusNotFound)
+		}
 	}
 
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		name := strings.TrimPrefix(r.URL.Path, "/")
-		if name == "" || (!strings.Contains(path.Base(name), ".") && r.Method == http.MethodGet) {
+	return func(c echo.Context) error {
+		name := strings.TrimPrefix(c.Request().URL.Path, "/")
+		if name == "" || (!strings.Contains(path.Base(name), ".") && c.Request().Method == http.MethodGet) {
 			name = "index.html"
 		}
-
 		if strings.Contains(name, "..") {
-			http.NotFound(w, r)
-			return
+			return echo.NewHTTPError(http.StatusNotFound)
 		}
 
 		data, err := fs.ReadFile(sub, path.Clean(name))
 		if err != nil {
-			http.NotFound(w, r)
-			return
+			return echo.NewHTTPError(http.StatusNotFound)
 		}
 
-		http.ServeContent(w, r, path.Base(name), time.Time{}, bytes.NewReader(data))
-	})
+		http.ServeContent(c.Response().Writer, c.Request(), path.Base(name), time.Time{}, bytes.NewReader(data))
+		return nil
+	}
 }

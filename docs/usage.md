@@ -8,17 +8,25 @@ It works on Linux, macOS, and Windows.
 
 ## Quick start
 
+Requires Go 1.23 or newer.
+
 ```bash
 cd backend
 go run ./cmd/port-mapper
 ```
 
+You can also tweak startup behavior:
+
+- `--listen-addr 127.0.0.1:9090` to move the local UI to another localhost port
+- `--config /path/to/config.json` to point at a different config file beside the binary
+- `--no-browser` to disable automatic browser opening
+
 On startup, the app:
 
-- loads `config.json` from the same directory as the binary
+- loads `config.json` from the same directory as the binary unless `--config` is set
 - falls back to safe defaults when the file does not exist
-- binds only to `127.0.0.1`
-- opens the local UI in your browser when browser opening is enabled, using the platform default browser launcher
+- binds only to `127.0.0.1` by default
+- opens the local UI in your browser unless `--no-browser` is used
 
 ## Config file
 

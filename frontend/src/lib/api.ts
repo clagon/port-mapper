@@ -1,4 +1,4 @@
-import type { HealthResponse, Settings, StatusResponse } from './types';
+import type { HealthResponse, PortMapping, Settings, StatusResponse } from './types';
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
@@ -14,9 +14,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   health: () => request<HealthResponse>('/api/health'),
   status: () => request<StatusResponse>('/api/status'),
-  discover: () => request<{ ok: boolean }>('/api/discover', { method: 'POST' }),
-  openPort: () => request<{ ok: boolean }>('/api/ports/open', { method: 'POST' }),
-  closePort: () => request<{ ok: boolean }>('/api/ports/close', { method: 'POST' }),
+  discover: () => request<StatusResponse>('/api/discover', { method: 'POST' }),
+  openPort: (mapping: PortMapping) => request<StatusResponse>('/api/ports/open', {
+    method: 'POST',
+    body: JSON.stringify(mapping),
+  }),
+  closePort: (mapping: PortMapping) => request<StatusResponse>('/api/ports/close', {
+    method: 'POST',
+    body: JSON.stringify(mapping),
+  }),
   getSettings: () => request<Settings>('/api/settings'),
   saveSettings: (settings: Settings) => request<{ ok: boolean }>('/api/settings', {
     method: 'POST',

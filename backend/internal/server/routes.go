@@ -1,17 +1,16 @@
 package server
 
-import "net/http"
+import "github.com/labstack/echo/v4"
 
-// NewMux builds the HTTP routes for the application.
-func NewMux() http.Handler {
-	h := newAPIHandlers()
-	mux := http.NewServeMux()
-	mux.HandleFunc("/api/health", h.health)
-	mux.HandleFunc("/api/status", h.status)
-	mux.HandleFunc("/api/discover", h.discover)
-	mux.HandleFunc("/api/ports/open", h.portsOpen)
-	mux.HandleFunc("/api/ports/close", h.portsClose)
-	mux.HandleFunc("/api/settings", h.settings)
-	mux.Handle("/", staticHandler())
-	return mux
+// registerRoutes builds the HTTP routes for the application.
+func registerRoutes(e *echo.Echo, svc *service) {
+	h := newAPIHandlers(svc)
+	e.GET("/api/health", h.health)
+	e.GET("/api/status", h.status)
+	e.POST("/api/discover", h.discover)
+	e.POST("/api/ports/open", h.portsOpen)
+	e.POST("/api/ports/close", h.portsClose)
+	e.GET("/api/settings", h.getSettings)
+	e.POST("/api/settings", h.updateSettings)
+	e.GET("/*", staticHandler())
 }

@@ -6,7 +6,6 @@ This tool is intentionally conservative.
 
 - bind only to `127.0.0.1`
 - avoid exposing the local API on LAN interfaces
-- require bearer-token auth for local API actions
 - treat UPnP as a privileged capability and keep the default UX safe
 - prefer temporary leases over permanent openings
 
@@ -17,10 +16,10 @@ This tool is intentionally conservative.
 The backend refuses non-local listen addresses by default.
 That means no `0.0.0.0`, no public interfaces, and no accidental LAN exposure.
 
-### Browser token
+### Local-only API
 
-The local API uses a bearer token for privileged endpoints.
-Keep it local and do not paste it anywhere else.
+The backend binds to localhost by default.
+That keeps the UI and API off the LAN unless you explicitly change the listen address.
 
 ### Lease duration
 
