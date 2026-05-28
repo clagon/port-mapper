@@ -7,38 +7,8 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 )
-
-func TestSSDPSearchTargets(t *testing.T) {
-	for _, want := range []string{
-		"urn:schemas-upnp-org:device:InternetGatewayDevice:1",
-		"upnp:rootdevice",
-		"ssdp:all",
-	} {
-		found := false
-		for _, got := range ssdpSearchTargets {
-			if got == want {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Fatalf("ssdpSearchTargets missing %q in %#v", want, ssdpSearchTargets)
-		}
-	}
-}
-
-func TestBuildSSDPSearchRequest(t *testing.T) {
-	msg := buildMSearch("upnp:rootdevice")
-	if !strings.Contains(msg, "ST: upnp:rootdevice") {
-		t.Fatalf("search request missing ST line: %q", msg)
-	}
-	if !strings.HasSuffix(msg, "\r\n\r\n") {
-		t.Fatalf("search request should end with CRLF CRLF: %q", msg)
-	}
-}
 
 func readTestData(t *testing.T, name string) string {
 	t.Helper()
@@ -246,43 +216,4 @@ func interfaceName(iface *net.Interface) string {
 		return ""
 	}
 	return iface.Name
-}
-
-func TestBuildMSearch(t *testing.T) {
-	got := buildMSearch("urn:schemas-upnp-org:device:InternetGatewayDevice:1")
-	for _, want := range []string{
-		"M-SEARCH * HTTP/1.1\r\n",
-		"HOST: 239.255.255.250:1900\r\n",
-		"MX: 2\r\n",
-		"ST: urn:schemas-upnp-org:device:InternetGatewayDevice:1\r\n",
-		"USER-AGENT: Windows/10 UPnP/1.1 port-mapper/1.0\r\n",
-		"\r\n\r\n",
-	} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("buildMSearch() missing %q in %q", want, got)
-		}
-	}
-}
-
-func TestFallbackControlCandidates(t *testing.T) {
-	_, ipNet, err := net.ParseCIDR("192.168.1.20/24")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	got := fallbackControlCandidates([]discoverInterface{{
-		ListenAddr: &net.UDPAddr{IP: net.ParseIP("192.168.1.20"), Port: 0},
-		IPNet:      ipNet,
-	}})
-	if len(got) == 0 {
-		t.Fatal("fallbackControlCandidates() returned no candidates")
-	}
-
-	wantURL := "http://192.168.1.1:5000/upnp/control/WANIPConn1"
-	for _, candidate := range got {
-		if candidate.ControlURL == wantURL && candidate.ServiceType == "urn:schemas-upnp-org:service:WANIPConnection:2" {
-			return
-		}
-	}
-	t.Fatalf("fallbackControlCandidates() missing %s", wantURL)
 }

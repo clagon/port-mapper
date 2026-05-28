@@ -45,6 +45,7 @@ type service struct {
 	logger            *slog.Logger
 }
 
+// service 内で gateway 未選択を表すエラー。UPnP discovery 自体の失敗は upnp.ErrNoGateway を使う。
 var errNoGateway = errors.New("no UPnP gateway discovered")
 
 func newService(opts serviceOptions) *service {
@@ -133,6 +134,7 @@ func (s *service) status() StatusResponse {
 func (s *service) discover() (StatusResponse, error) {
 	result, err := s.discovery.Discover()
 	if err != nil {
+		// discovery 未検出は UI 上の通常状態として扱い、現在の status を返す。
 		if errors.Is(err, upnp.ErrNoGateway) {
 			if s.logger != nil {
 				s.logger.Info("router not discovered", "reason", err.Error())
