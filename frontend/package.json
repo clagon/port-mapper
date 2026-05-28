@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "node scripts/clean-backend-assets.mjs",
     "build": "vite build",
+    "postbuild": "node scripts/ensure-backend-assets-keep.mjs",
     "preview": "vite preview"
   },
   "devDependencies": {
