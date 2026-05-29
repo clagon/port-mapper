@@ -386,3 +386,14 @@ label small,
     width: 100%;
   }
 }
+
+@keyframes pulse-progress {
+  0% { transform: translateX(-100%); }
+  50% { transform: translateX(-20%); }
+  100% { transform: translateX(100%); }
+}
+
+.animate-progress-infinite {
+  animation: pulse-progress 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  width: 60%;
+}

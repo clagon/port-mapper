@@ -2,6 +2,7 @@
   import { createEventDispatcher } from 'svelte';
   export let status;
   export let refresh;
+  export let busy = false;
 
   const dispatch = createEventDispatcher();
 
@@ -42,8 +43,17 @@
       <h1 class="font-display-lg text-display-lg text-text-main mb-2">おはようございます</h1>
       <p class="font-body-md text-text-muted">ネットワークは現在安全で、最適化されています。</p>
     </div>
-    <button class="bg-surface-container-low text-primary px-4 py-2 rounded-full font-label-sm hover:bg-surface-container transition-colors duration-200" on:click={refresh}>
+    <button 
+      class="bg-surface-container-low text-primary px-4 py-2 rounded-full font-label-sm hover:bg-surface-container transition-colors duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed" 
+      on:click={refresh}
+      disabled={busy}
+    >
+      {#if busy}
+        <span class="material-symbols-outlined text-sm animate-spin">sync</span>
+        更新中...
+      {:else}
         更新
+      {/if}
     </button>
   </header>
 
@@ -61,8 +71,13 @@
 
         <div class="mt-4">
           <div class="inline-flex items-center gap-2 bg-surface-container-low px-4 py-2 rounded-full border border-surface-dim mb-6">
-            <div class="w-3 h-3 rounded-full {status?.discovered ? 'bg-status-active animate-pulse' : 'bg-status-warning'}"></div>
-            <span class="font-label-sm text-label-sm text-text-main">{status?.discovered ? 'システム準備完了' : 'ルーター未検出'}</span>
+            {#if busy}
+              <div class="w-3 h-3 rounded-full bg-primary animate-pulse"></div>
+              <span class="font-label-sm text-label-sm text-text-main">ルーター探索中...</span>
+            {:else}
+              <div class="w-3 h-3 rounded-full {status?.discovered ? 'bg-status-active animate-pulse' : 'bg-status-warning'}"></div>
+              <span class="font-label-sm text-label-sm text-text-main">{status?.discovered ? 'システム準備完了' : 'ルーター未検出'}</span>
+            {/if}
           </div>
         </div>
 
