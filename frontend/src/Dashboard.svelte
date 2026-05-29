@@ -140,6 +140,9 @@
             </div>
 
             <div class="mt-auto pt-2 flex gap-2">
+              <button class="flex-1 bg-surface-card border-2 border-surface-variant text-primary font-label-sm text-label-sm rounded-full py-2 hover:bg-surface-container-low hover:border-primary/20 transition-all focus-ring-soft" on:click={() => dispatch('editPort', port)}>
+                編集
+              </button>
               <button class="flex-1 bg-surface-card border-2 border-surface-variant text-error font-label-sm text-label-sm rounded-full py-2 hover:bg-error-container hover:border-error-container transition-all focus-ring-soft" on:click={() => dispatch('closePort', port)}>
                 停止
               </button>

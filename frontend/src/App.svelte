@@ -22,6 +22,7 @@
 
   let isAddModalOpen = false;
   let isSettingsModalOpen = false;
+  let editingPort = null;
 
   async function refresh() {
     error = '';
@@ -81,8 +82,29 @@
     await runAction(() => api.saveSettings(form), '設定を保存しています...');
   }
 
-  function handleAddPortSubmit(event) {
-    openPort(event.detail);
+  async function handleAddPortSubmit(event) {
+    const portData = event.detail;
+    if (editingPort) {
+      await runAction(async () => {
+        await api.closePort({
+          external_port: editingPort.external_port,
+          protocol: editingPort.protocol
+        });
+        const mapping = {
+          protocol: portData.protocol,
+          external_port: portData.portNumber,
+          internal_port: portData.portNumber,
+          internal_ip: '',
+          description: portData.appName,
+          lease_duration_seconds: 0
+        };
+        await api.openPort(mapping);
+      }, 'ポートの設定を変更しています...');
+      editingPort = null;
+    } else {
+      await openPort(portData);
+    }
+    isAddModalOpen = false;
   }
 
   async function handleSettingsSave(event) {
@@ -131,14 +153,16 @@
   status={$status}
   busy={$busy}
   refresh={refresh}
-  on:addPort={() => isAddModalOpen = true}
+  on:addPort={() => { editingPort = null; isAddModalOpen = true; }}
+  on:editPort={(event) => { editingPort = event.detail; isAddModalOpen = true; }}
   on:closePort={closePort}
   on:settings={() => isSettingsModalOpen = true}
 />
 
 {#if isAddModalOpen}
   <AddPortModal
-    on:close={() => isAddModalOpen = false}
+    port={editingPort}
+    on:close={() => { isAddModalOpen = false; editingPort = null; }}
     on:submit={handleAddPortSubmit}
   />
 {/if}

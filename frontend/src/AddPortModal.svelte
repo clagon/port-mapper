@@ -1,11 +1,23 @@
 <script>
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, onMount } from 'svelte';
+
+  export let port = null;
 
   const dispatch = createEventDispatcher();
 
   let appName = '';
   let portNumber = '';
   let protocol = 'tcp';
+
+  $: isEdit = port !== null;
+
+  onMount(() => {
+    if (port) {
+      appName = port.description || '';
+      portNumber = port.external_port ? port.external_port.toString() : '';
+      protocol = port.protocol ? port.protocol.toLowerCase() : 'tcp';
+    }
+  });
 
   function submit() {
     dispatch('submit', {
@@ -32,10 +44,16 @@
 
       <div class="text-center space-y-2 relative z-10">
         <div class="w-16 h-16 bg-surface-container-low rounded-full flex items-center justify-center mx-auto mb-4">
-          <span class="material-symbols-outlined text-primary text-3xl" style="font-variation-settings: 'FILL' 1;">add_link</span>
+          <span class="material-symbols-outlined text-primary text-3xl" style="font-variation-settings: 'FILL' 1;">
+            {isEdit ? 'edit' : 'add_link'}
+          </span>
         </div>
-        <h1 class="font-headline-md text-headline-md text-on-surface">新しいポートを追加</h1>
-        <p class="font-body-md text-body-md text-secondary">共有したいゲームやアプリの情報を教えてください。</p>
+        <h1 class="font-headline-md text-headline-md text-on-surface">
+          {isEdit ? 'ポート設定を編集' : '新しいポートを追加'}
+        </h1>
+        <p class="font-body-md text-body-md text-secondary">
+          {isEdit ? '設定内容を変更してください。' : '共有したいゲームやアプリの情報を教えてください。'}
+        </p>
       </div>
 
       <form class="space-y-6 relative z-10" on:submit|preventDefault={submit}>
@@ -83,8 +101,10 @@
         <div class="pt-6">
           <button class="w-full py-4 px-6 bg-primary text-on-primary rounded-full font-headline-md-mobile text-headline-md-mobile hover:bg-surface-tint hover:-translate-y-1 hover:shadow-ambient-hover transition-all duration-200 flex items-center justify-center gap-2 group relative overflow-hidden" type="submit">
             <div class="absolute inset-0 border-2 border-white/20 rounded-full"></div>
-            <span>共有を開始する</span>
-            <span class="material-symbols-outlined group-hover:translate-x-1 transition-transform duration-200">arrow_forward</span>
+            <span>{isEdit ? '変更を保存する' : '共有を開始する'}</span>
+            <span class="material-symbols-outlined group-hover:translate-x-1 transition-transform duration-200">
+              {isEdit ? 'save' : 'arrow_forward'}
+            </span>
           </button>
         </div>
       </form>
