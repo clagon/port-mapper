@@ -28,7 +28,7 @@
       <button aria-label="Settings" class="text-secondary hover:text-primary-container hover:bg-surface-container transition-all duration-200 focus-ring-soft rounded-full w-10 h-10 flex items-center justify-center p-0 bg-transparent border-none" on:click={() => dispatch('settings')}>
         <span class="material-symbols-outlined">settings</span>
       </button>
-      <button aria-label="Help" class="text-secondary hover:text-primary-container hover:bg-surface-container transition-all duration-200 focus-ring-soft rounded-full w-10 h-10 flex items-center justify-center p-0 bg-transparent border-none">
+      <button aria-label="Help" class="text-secondary hover:text-primary-container hover:bg-surface-container transition-all duration-200 focus-ring-soft rounded-full w-10 h-10 flex items-center justify-center p-0 bg-transparent border-none" on:click={() => window.open('/help.html', '_blank')}>
         <span class="material-symbols-outlined">help</span>
       </button>
     </div>
