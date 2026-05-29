@@ -15,7 +15,7 @@
     <!-- Brand -->
     <div class="text-headline-md font-headline-md font-bold text-primary dark:text-primary-fixed-dim flex items-center gap-2">
       <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">router</span>
-      PortMapper
+      Porto
     </div>
 
     <!-- Trailing Actions -->
@@ -36,8 +36,8 @@
   <!-- Header -->
   <header class="flex justify-between items-end mb-4">
     <div>
-      <h1 class="font-display-lg text-display-lg text-text-main mb-2">ポートマッピングの管理</h1>
-      <p class="font-body-md text-text-muted">UPnPを利用してPCのポートを一時的に開放し、ゲームやアプリを外部と安全に共有します。</p>
+      <h1 class="font-display-lg text-display-lg text-text-main mb-2">ポート開放の管理</h1>
+      <p class="font-body-md text-text-muted">Portoは、UPnPを利用してPCのポートを一時的に開放し、ゲームやアプリを外部と安全に共有するためのツールです。</p>
     </div>
     <button 
       class="bg-surface-container-low text-primary px-4 py-2 rounded-full font-label-sm hover:bg-surface-container transition-colors duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed" 
@@ -158,10 +158,10 @@
 <footer class="bg-transparent full-width bottom-0 mt-auto">
   <div class="flex flex-col md:flex-row justify-between items-center px-margin-page py-8 w-full max-w-7xl mx-auto gap-stack-gap border-t border-surface-variant">
     <div class="font-label-sm text-label-sm font-bold text-primary opacity-80 hover:opacity-100 transition-opacity">
-      PortMapper
+      Porto
     </div>
     <div class="font-label-sm text-label-sm text-secondary dark:text-secondary-fixed-dim">
-      © 2024 PortMapper • Your Helpful Network Guardian
+      © 2024-2026 Porto • かんたん安全なポート開放ツール
     </div>
   </div>
 </footer>
