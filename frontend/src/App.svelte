@@ -101,6 +101,7 @@
 
 <Dashboard
   status={$status}
+  busy={$busy}
   refresh={refresh}
   on:addPort={() => isAddModalOpen = true}
   on:closePort={closePort}
