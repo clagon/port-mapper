@@ -5,9 +5,7 @@
 
   const dispatch = createEventDispatcher();
 
-  function getPortCount() {
-    return Array.isArray(status?.ports) ? status.ports.length : 0;
-  }
+  $: portCount = Array.isArray(status?.ports) ? status.ports.length : 0;
 </script>
 
 <!-- TopNavBar -->
@@ -98,12 +96,12 @@
     <div class="flex justify-between items-center mb-6">
       <h2 class="font-headline-md text-headline-md text-text-main">アクティブなポート</h2>
       <span class="font-label-sm text-label-sm text-primary px-2 py-1">
-        {getPortCount()} 個
+        {portCount} 個
       </span>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
-      {#if getPortCount() > 0}
+      {#if portCount > 0}
         {#each status.ports as port, index}
           <div class="bg-surface-card rounded-xl p-card-padding shadow-ambient-card flex flex-col gap-4 border border-transparent hover:border-surface-variant transition-colors">
             <div class="flex justify-between items-start">
