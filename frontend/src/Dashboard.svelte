@@ -17,11 +17,7 @@
       <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">router</span>
       PortMapper
     </div>
-    <!-- Navigation Links -->
-    <div class="hidden md:flex items-center gap-8">
-      <a class="text-primary dark:text-primary-fixed-dim font-bold border-b-2 border-primary dark:border-primary-fixed-dim pb-1 hover:text-primary-container dark:hover:text-primary-fixed transition-colors duration-200" href="#">Dashboard</a>
-      <a class="text-secondary dark:text-secondary-fixed-dim font-body-md hover:text-primary-container dark:hover:text-primary-fixed transition-colors duration-200" href="#">Logs</a>
-    </div>
+
     <!-- Trailing Actions -->
     <div class="flex items-center gap-4">
       <span class="hidden md:inline-block font-label-sm text-label-sm text-status-active bg-surface-container px-3 py-1 rounded-full">Status: Active</span>
@@ -166,11 +162,6 @@
     </div>
     <div class="font-label-sm text-label-sm text-secondary dark:text-secondary-fixed-dim">
       © 2024 PortMapper • Your Helpful Network Guardian
-    </div>
-    <div class="flex gap-4">
-      <a class="font-label-sm text-label-sm text-secondary dark:text-secondary-fixed-dim hover:text-primary transition-colors opacity-80 hover:opacity-100" href="#">Documentation</a>
-      <a class="font-label-sm text-label-sm text-secondary dark:text-secondary-fixed-dim hover:text-primary transition-colors opacity-80 hover:opacity-100" href="#">System Health</a>
-      <a class="font-label-sm text-label-sm text-secondary dark:text-secondary-fixed-dim hover:text-primary transition-colors opacity-80 hover:opacity-100" href="#">Support</a>
     </div>
   </div>
 </footer>
