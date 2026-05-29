@@ -6,7 +6,23 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
   });
   if (!res.ok) {
-    throw new Error(`${path} failed: ${res.status}`);
+    let errMsg = `${path} failed: ${res.status}`;
+    try {
+      const rawText = await res.text();
+      if (rawText) {
+        try {
+          const errObj = JSON.parse(rawText);
+          if (errObj && typeof errObj === 'object' && 'message' in errObj) {
+            errMsg = String(errObj.message);
+          } else {
+            errMsg = rawText;
+          }
+        } catch {
+          errMsg = rawText;
+        }
+      }
+    } catch {}
+    throw new Error(errMsg);
   }
   return (await res.json()) as T;
 }

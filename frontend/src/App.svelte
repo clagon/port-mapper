@@ -4,16 +4,21 @@
   import { api } from './lib/api';
   import { busy, blocking, settings, status } from './lib/stores';
   import { validateSettings } from './lib/validate';
+  import { parseError } from './lib/error';
 
   import Dashboard from './Dashboard.svelte';
   import AddPortModal from './AddPortModal.svelte';
   import SettingsModal from './SettingsModal.svelte';
 
   let error = '';
+  let isErrorDetailsOpen = false;
   let form = {
     listen_addr: '127.0.0.1:8080',
     auto_discover: true,
   };
+
+  $: friendlyError = parseError(error);
+  $: if (!error) isErrorDetailsOpen = false;
 
   let isAddModalOpen = false;
   let isSettingsModalOpen = false;
@@ -91,11 +96,34 @@
 </script>
 
 {#if error}
-  <div class="fixed top-4 left-1/2 -translate-x-1/2 bg-error text-on-error px-6 py-3 rounded-xl shadow-ambient-hover z-[200] max-w-md w-full text-center font-body-md" role="alert">
-    {error}
-    <button class="absolute top-1/2 right-4 -translate-y-1/2 text-on-error opacity-80 hover:opacity-100" on:click={() => error = ''}>
-      <span class="material-symbols-outlined text-sm">close</span>
-    </button>
+  <div class="fixed top-6 left-1/2 -translate-x-1/2 bg-surface-card text-on-surface rounded-2xl shadow-ambient-hover z-[200] max-w-md w-[90%] p-6 border-l-4 border-error flex flex-col gap-4 font-body-md" role="alert" transition:fade={{ duration: 150 }}>
+    <div class="flex items-start gap-4">
+      <div class="w-10 h-10 rounded-full bg-error-container text-error flex items-center justify-center flex-shrink-0">
+        <span class="material-symbols-outlined text-error" style="font-variation-settings: 'FILL' 1;">warning</span>
+      </div>
+      <div class="flex-grow space-y-1">
+        <h3 class="font-headline-sm text-headline-sm text-error">{friendlyError.title}</h3>
+        <p class="font-body-md text-body-md text-secondary leading-relaxed">{friendlyError.message}</p>
+      </div>
+      <button class="text-secondary hover:text-text-main flex-shrink-0 p-1 rounded-full hover:bg-surface-container transition-colors" on:click={() => error = ''} aria-label="エラーを閉じる">
+        <span class="material-symbols-outlined text-sm">close</span>
+      </button>
+    </div>
+
+    <!-- 詳細アコーディオン -->
+    {#if friendlyError.details}
+      <div class="border-t border-surface-variant pt-3 mt-1">
+        <button class="w-full text-left flex justify-between items-center text-label-sm font-label-sm text-secondary hover:text-text-main transition-colors" on:click={() => isErrorDetailsOpen = !isErrorDetailsOpen}>
+          <span>詳細なエラー情報</span>
+          <span class="material-symbols-outlined text-sm transition-transform duration-200" style="transform: rotate({isErrorDetailsOpen ? 180 : 0}deg)">expand_more</span>
+        </button>
+        {#if isErrorDetailsOpen}
+          <div class="mt-3 bg-surface-container-low rounded-lg p-3 text-label-sm font-label-sm font-mono break-all text-secondary overflow-y-auto max-h-32 select-all selection:bg-primary/20">
+            {friendlyError.details}
+          </div>
+        {/if}
+      </div>
+    {/if}
   </div>
 {/if}
 
