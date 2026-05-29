@@ -1,4 +1,4 @@
-package server
+package service
 
 import (
 	"errors"
@@ -15,33 +15,44 @@ import (
 	"github.com/clagon/port-mapper/backend/internal/upnp"
 )
 
-type DiscoveryClient interface {
+type discoveryClient interface {
 	Discover() (upnp.DiscoveryResult, error)
 }
 
-type PortMapper interface {
+type portMapper interface {
 	GetExternalIPAddress() (string, error)
 	AddPortMapping(upnp.PortMapping) error
 	DeletePortMapping(protocol string, externalPort int) error
 	GetGenericPortMappingEntry(index int) (upnp.PortMapping, error)
 }
 
-type PortMapperFactory func(upnp.DiscoveryResult) PortMapper
+type portMapperFactory func(upnp.DiscoveryResult) portMapper
 
-type serviceOptions struct {
-	configPath        string
-	cfg               config.Config
-	discovery         DiscoveryClient
-	portMapperFactory PortMapperFactory
-	logger            *slog.Logger
+// Status describes the current discovery and mapping state.
+type Status struct {
+	Discovered  bool               `json:"discovered"`
+	ServiceType string             `json:"service_type,omitempty"`
+	ControlURL  string             `json:"control_url,omitempty"`
+	ExternalIP  string             `json:"external_ip,omitempty"`
+	LocalIP     string             `json:"local_ip,omitempty"`
+	Ports       []upnp.PortMapping `json:"ports"`
 }
 
-type service struct {
+type Options struct {
+	ConfigPath string
+	Config     config.Config
+	Logger     *slog.Logger
+
+	discovery         discoveryClient
+	portMapperFactory portMapperFactory
+}
+
+type Service struct {
 	mu                sync.RWMutex
 	cfg               config.Config
 	configPath        string
-	discovery         DiscoveryClient
-	portMapperFactory PortMapperFactory
+	discovery         discoveryClient
+	portMapperFactory portMapperFactory
 	gateway           *upnp.DiscoveryResult
 	externalIP        string
 	localIP           string
@@ -52,14 +63,14 @@ type service struct {
 // service 内で gateway 未選択を表すエラー。UPnP discovery 自体の失敗は upnp.ErrNoGateway を使う。
 var errNoGateway = errors.New("no UPnP gateway discovered")
 
-func newService(opts serviceOptions) *service {
-	logger := opts.logger
+func New(opts Options) *Service {
+	logger := opts.Logger
 	if logger == nil {
 		logger = slog.Default()
 	}
-	cfg := opts.cfg.WithDefaults()
-	if opts.configPath == "" {
-		opts.configPath = config.DefaultPath()
+	cfg := opts.Config.WithDefaults()
+	if opts.ConfigPath == "" {
+		opts.ConfigPath = config.DefaultPath()
 	}
 	if opts.discovery == nil {
 		opts.discovery = defaultDiscoveryClient{}
@@ -67,16 +78,16 @@ func newService(opts serviceOptions) *service {
 	if opts.portMapperFactory == nil {
 		opts.portMapperFactory = defaultPortMapperFactory
 	}
-	return &service{
+	return &Service{
 		cfg:               cfg,
-		configPath:        opts.configPath,
+		configPath:        opts.ConfigPath,
 		discovery:         opts.discovery,
 		portMapperFactory: opts.portMapperFactory,
 		logger:            logger,
 	}
 }
 
-func defaultPortMapperFactory(result upnp.DiscoveryResult) PortMapper {
+func defaultPortMapperFactory(result upnp.DiscoveryResult) portMapper {
 	return &upnp.SOAPClient{
 		Endpoint:    result.ControlURL,
 		ServiceType: result.ServiceType,
@@ -90,13 +101,13 @@ func (defaultDiscoveryClient) Discover() (upnp.DiscoveryResult, error) {
 	return upnp.Discover()
 }
 
-func (s *service) settings() config.Config {
+func (s *Service) Settings() config.Config {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.cfg.WithDefaults()
 }
 
-func (s *service) updateSettings(next config.Config) (config.Config, error) {
+func (s *Service) UpdateSettings(next config.Config) (config.Config, error) {
 	next = next.WithDefaults()
 	if err := config.ValidateLocalListenAddr(next.ListenAddr); err != nil {
 		return config.Config{}, err
@@ -119,11 +130,11 @@ func (s *service) updateSettings(next config.Config) (config.Config, error) {
 	return next, nil
 }
 
-func (s *service) status() StatusResponse {
+func (s *Service) Status() Status {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	resp := StatusResponse{
+	resp := Status{
 		Discovered: s.gateway != nil,
 		Ports:      append([]upnp.PortMapping{}, s.ports...),
 	}
@@ -136,7 +147,7 @@ func (s *service) status() StatusResponse {
 	return resp
 }
 
-func (s *service) discover() (StatusResponse, error) {
+func (s *Service) Discover() (Status, error) {
 	result, err := s.discovery.Discover()
 	if err != nil {
 		// discovery 未検出は UI 上の通常状態として扱い、現在の status を返す。
@@ -144,9 +155,9 @@ func (s *service) discover() (StatusResponse, error) {
 			if s.logger != nil {
 				s.logger.Info("router not discovered", "reason", err.Error())
 			}
-			return s.status(), nil
+			return s.Status(), nil
 		}
-		return StatusResponse{}, err
+		return Status{}, err
 	}
 
 	mapper := s.portMapperFactory(result)
@@ -195,25 +206,25 @@ func (s *service) discover() (StatusResponse, error) {
 			"local_ip", localIP,
 		)
 	}
-	return s.status(), nil
+	return s.Status(), nil
 }
 
-func (s *service) openPort(mapping upnp.PortMapping) (StatusResponse, error) {
+func (s *Service) OpenPort(mapping upnp.PortMapping) (Status, error) {
 	resolvedIP, err := s.resolveInternalIP(mapping.InternalIP)
 	if err != nil {
-		return StatusResponse{}, fmt.Errorf("failed to resolve internal IP: %w", err)
+		return Status{}, fmt.Errorf("failed to resolve internal IP: %w", err)
 	}
 	mapping.InternalIP = resolvedIP
 
 	if err := upnp.ValidatePortMapping(mapping); err != nil {
-		return StatusResponse{}, err
+		return Status{}, err
 	}
 	mapper, err := s.currentPortMapper()
 	if err != nil {
-		return StatusResponse{}, err
+		return Status{}, err
 	}
 	if err := mapper.AddPortMapping(mapping); err != nil {
-		return StatusResponse{}, err
+		return Status{}, err
 	}
 
 	s.mu.Lock()
@@ -228,19 +239,19 @@ func (s *service) openPort(mapping upnp.PortMapping) (StatusResponse, error) {
 			"internal_port", mapping.InternalPort,
 		)
 	}
-	return s.status(), nil
+	return s.Status(), nil
 }
 
-func (s *service) closePort(mapping upnp.PortMapping) (StatusResponse, error) {
+func (s *Service) ClosePort(mapping upnp.PortMapping) (Status, error) {
 	if err := validateDeleteRequest(mapping); err != nil {
-		return StatusResponse{}, err
+		return Status{}, err
 	}
 	mapper, err := s.currentPortMapper()
 	if err != nil {
-		return StatusResponse{}, err
+		return Status{}, err
 	}
 	if err := mapper.DeletePortMapping(mapping.Protocol, mapping.ExternalPort); err != nil {
-		return StatusResponse{}, err
+		return Status{}, err
 	}
 
 	s.mu.Lock()
@@ -253,10 +264,10 @@ func (s *service) closePort(mapping upnp.PortMapping) (StatusResponse, error) {
 			"external_port", mapping.ExternalPort,
 		)
 	}
-	return s.status(), nil
+	return s.Status(), nil
 }
 
-func (s *service) currentPortMapper() (PortMapper, error) {
+func (s *Service) currentPortMapper() (portMapper, error) {
 	s.mu.RLock()
 	gateway := s.gateway
 	s.mu.RUnlock()
@@ -326,7 +337,7 @@ func boolValue(v *bool) bool {
 	return v != nil && *v
 }
 
-func (s *service) resolveInternalIP(providedIP string) (string, error) {
+func (s *Service) resolveInternalIP(providedIP string) (string, error) {
 	if ip := strings.TrimSpace(providedIP); ip != "" {
 		return ip, nil
 	}
@@ -360,7 +371,7 @@ func (s *service) resolveInternalIP(providedIP string) (string, error) {
 	return localAddr.IP.String(), nil
 }
 
-func (s *service) fallbackLocalIP() (string, error) {
+func (s *Service) fallbackLocalIP() (string, error) {
 	ifaces, err := net.Interfaces()
 	if err != nil {
 		return "", err
@@ -389,7 +400,7 @@ func (s *service) fallbackLocalIP() (string, error) {
 	return "", fmt.Errorf("no suitable local IP address found")
 }
 
-func (s *service) syncActivePorts(mapper PortMapper, localIP string) {
+func (s *Service) syncActivePorts(mapper portMapper, localIP string) {
 	if mapper == nil || localIP == "" {
 		return
 	}
@@ -422,4 +433,3 @@ func (s *service) syncActivePorts(mapper PortMapper, localIP string) {
 	}
 	s.mu.Unlock()
 }
-

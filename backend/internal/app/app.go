@@ -9,6 +9,7 @@ import (
 
 	"github.com/clagon/port-mapper/backend/internal/config"
 	"github.com/clagon/port-mapper/backend/internal/server"
+	"github.com/clagon/port-mapper/backend/internal/service"
 )
 
 const defaultListenAddr = "127.0.0.1:8080"
@@ -31,6 +32,7 @@ type AppOptions struct {
 type App struct {
 	cfg           config.Config
 	server        *server.Server
+	service       *service.Service
 	configPath    string
 	openBrowser   bool
 	browserOpener BrowserOpener
@@ -64,14 +66,16 @@ func New(opts AppOptions) (*App, error) {
 		logger = slog.Default()
 	}
 
+	svc := service.New(service.Options{
+		ConfigPath: configPath,
+		Config:     cfg,
+		Logger:     logger,
+	})
+
 	return &App{
-		cfg: cfg,
-		server: server.New(
-			cfg.ListenAddr,
-			logger,
-			server.WithConfigPath(configPath),
-			server.WithConfig(cfg),
-		),
+		cfg:           cfg,
+		server:        server.New(cfg.ListenAddr, logger, svc),
+		service:       svc,
 		configPath:    configPath,
 		openBrowser:   opts.OpenBrowser,
 		browserOpener: opts.BrowserOpener,
@@ -142,7 +146,7 @@ func (a *App) Run() error {
 			if a.logger != nil {
 				a.logger.Info("auto discovering router")
 			}
-			if err := a.server.Discover(); err != nil && a.logger != nil {
+			if _, err := a.service.Discover(); err != nil && a.logger != nil {
 				a.logger.Warn("auto discovery failed", "error", err)
 			}
 		}()
