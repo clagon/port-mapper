@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"path/filepath"
 	"testing"
 
@@ -166,5 +167,56 @@ func TestOpenAndClosePortUpdatesStatus(t *testing.T) {
 	}
 	if len(mapper.deleteCalls) != 1 || len(got.Ports) != 0 {
 		t.Fatalf("delete calls = %d ports = %d", len(mapper.deleteCalls), len(got.Ports))
+	}
+}
+
+type recordingSettingsStore struct {
+	saved []config.Config
+	err   error
+}
+
+func (s *recordingSettingsStore) Save(cfg config.Config) error {
+	if s.err != nil {
+		return s.err
+	}
+	s.saved = append(s.saved, cfg)
+	return nil
+}
+
+func TestUpdateSettingsUsesInjectedSettingsStore(t *testing.T) {
+	store := &recordingSettingsStore{}
+	svc := New(Options{
+		Config:        config.DefaultConfig(),
+		SettingsStore: store,
+	})
+
+	next, err := svc.UpdateSettings(config.Config{ListenAddr: "127.0.0.1:9090", AutoDiscover: config.BoolPtr(false)})
+	if err != nil {
+		t.Fatalf("UpdateSettings() error = %v", err)
+	}
+	if len(store.saved) != 1 {
+		t.Fatalf("Save() calls = %d, want 1", len(store.saved))
+	}
+	if store.saved[0].ListenAddr != next.ListenAddr {
+		t.Fatalf("saved ListenAddr = %q, want %q", store.saved[0].ListenAddr, next.ListenAddr)
+	}
+	if got := svc.Settings().ListenAddr; got != next.ListenAddr {
+		t.Fatalf("Settings().ListenAddr = %q, want %q", got, next.ListenAddr)
+	}
+}
+
+func TestUpdateSettingsDoesNotMutateConfigWhenSettingsStoreFails(t *testing.T) {
+	storeErr := errors.New("save failed")
+	svc := New(Options{
+		Config:        config.Config{ListenAddr: "127.0.0.1:8080", AutoDiscover: config.BoolPtr(true)},
+		SettingsStore: &recordingSettingsStore{err: storeErr},
+	})
+
+	_, err := svc.UpdateSettings(config.Config{ListenAddr: "127.0.0.1:9090", AutoDiscover: config.BoolPtr(false)})
+	if !errors.Is(err, storeErr) {
+		t.Fatalf("UpdateSettings() error = %v, want %v", err, storeErr)
+	}
+	if got := svc.Settings().ListenAddr; got != "127.0.0.1:8080" {
+		t.Fatalf("Settings().ListenAddr = %q, want original", got)
 	}
 }

@@ -46,7 +46,8 @@ func New(opts AppOptions) (*App, error) {
 		configPath = config.DefaultPath()
 	}
 
-	cfg, err := config.Load(configPath)
+	settingsStore := config.FileStore{Path: configPath}
+	cfg, err := settingsStore.Load()
 	if err != nil {
 		return nil, err
 	}
@@ -67,9 +68,10 @@ func New(opts AppOptions) (*App, error) {
 	}
 
 	svc := service.New(service.Options{
-		ConfigPath: configPath,
-		Config:     cfg,
-		Logger:     logger,
+		ConfigPath:    configPath,
+		Config:        cfg,
+		Logger:        logger,
+		SettingsStore: settingsStore,
 	})
 
 	return &App{
