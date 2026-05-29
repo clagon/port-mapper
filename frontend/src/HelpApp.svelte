@@ -1,11 +1,13 @@
 <script lang="ts">
   import { marked } from 'marked';
-  import usageMd from '../../docs/usage.md?raw';
-  import securityMd from '../../docs/security.md?raw';
+  import usageMd from '../docs/usage.md?raw';
+  import minecraftMd from '../docs/minecraft.md?raw';
+  import securityMd from '../docs/security.md?raw';
 
   const docs = [
     { id: 'usage', title: '使い方ガイド', subtitle: 'Usage Guide', content: usageMd, icon: 'menu_book' },
-    { id: 'security', title: 'セキュリティ', subtitle: 'Security Policy', content: securityMd, icon: 'shield' }
+    { id: 'minecraft', title: 'Minecraftの設定例', subtitle: 'Minecraft Server', content: minecraftMd, icon: 'sports_esports' },
+    { id: 'security', title: '安全ガイド & FAQ', subtitle: 'Security & FAQ', content: securityMd, icon: 'shield' }
   ];
 
   let activeDocId = 'usage';
