@@ -1,3 +1,4 @@
+// Package main は Porto アプリケーションの起動用エントリポイントを提供します。
 package main
 
 import (
@@ -11,12 +12,14 @@ import (
 	"github.com/clagon/port-mapper/backend/internal/browseropener"
 )
 
+// cliOptions はコマンドライン引数から解析された起動オプションを表します。
 type cliOptions struct {
 	ListenAddr  string
 	ConfigPath  string
 	OpenBrowser bool
 }
 
+// parseArgs はコマンドライン引数を解析し起動オプションにマッピングします。
 func parseArgs(args []string) (cliOptions, error) {
 	fs := flag.NewFlagSet("port-mapper", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
@@ -35,6 +38,7 @@ func parseArgs(args []string) (cliOptions, error) {
 	return opts, nil
 }
 
+// main はアプリケーションのエントリポイントであり、フラグ解析、DI（依存性の注入）、および初期起動処理を実行します。
 func main() {
 	opts, err := parseArgs(os.Args[1:])
 	if err != nil {

@@ -1,3 +1,4 @@
+// Package config は Porto アプリケーションの設定情報のロード、セーブ、および検証を行います。
 package config
 
 import (
@@ -8,22 +9,22 @@ import (
 	"path/filepath"
 )
 
-// FileStore persists config values to a JSON file.
+// FileStore は、設定値をローカルディスク上の JSON ファイルへ永続化（保存および読み込み）するためのストア実装構造体です。
 type FileStore struct {
 	Path string
 }
 
-// Load reads config values from the store path.
+// Load は、指定されたストアパスから設定値を読み込みます。
 func (s FileStore) Load() (Config, error) {
 	return Load(s.Path)
 }
 
-// Save writes config values to the store path.
+// Save は、指定された設定値をストアパスのファイルに書き込みます。
 func (s FileStore) Save(cfg Config) error {
 	return Save(s.Path, cfg)
 }
 
-// Load reads a config file from path. Missing files return defaults.
+// Load は、指定されたパスから設定ファイルを読み込みます。ファイルが存在しない場合は、デフォルト設定値を無害に返します。
 func Load(path string) (Config, error) {
 	if path == "" {
 		path = DefaultPath()
@@ -44,7 +45,7 @@ func Load(path string) (Config, error) {
 	return cfg.WithDefaults(), nil
 }
 
-// Save writes the config file to path, creating parent directories as needed.
+// Save は、設定ファイルを指定されたパスに書き込みます。必要に応じて親ディレクトリを再帰的に自動作成します。
 func Save(path string, cfg Config) error {
 	if path == "" {
 		path = DefaultPath()
@@ -66,7 +67,7 @@ func Save(path string, cfg Config) error {
 	return nil
 }
 
-// DefaultPath returns the config path beside the executable.
+// DefaultPath は、実行可能バイナリと同一ディレクトリ内の "config.json" の絶対パスをデフォルトとして計算して返します。
 func DefaultPath() string {
 	exe, err := os.Executable()
 	if err != nil {

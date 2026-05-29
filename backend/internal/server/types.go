@@ -5,17 +5,17 @@ import (
 	"github.com/clagon/port-mapper/backend/internal/service"
 )
 
-// HealthResponse is the JSON payload returned by GET /api/health.
+// HealthResponse は、GET /api/health によって返されるヘルスチェック用の JSON レスポンスデータ構造です。
 type HealthResponse struct {
 	Ok bool `json:"ok"`
 }
 
-// ActionResponse is the standard JSON payload returned by mutating endpoints.
+// ActionResponse は、更新や削除などの副作用を伴う API 呼び出しが成功した際に返される標準的な JSON レスポンスデータ構造です。
 type ActionResponse struct {
 	Ok bool `json:"ok"`
 }
 
-// PortMappingRequest is the JSON payload accepted by POST /api/ports/open.
+// PortMappingRequest は、POST /api/ports/open でポートを新しく開く際にクライアントから送信される JSON リクエストデータ構造です。
 type PortMappingRequest struct {
 	Protocol             string `json:"protocol"`
 	ExternalPort         int    `json:"external_port"`
@@ -25,13 +25,13 @@ type PortMappingRequest struct {
 	LeaseDurationSeconds int    `json:"lease_duration_seconds"`
 }
 
-// ClosePortRequest is the JSON payload accepted by POST /api/ports/close.
+// ClosePortRequest は、POST /api/ports/close で特定の転送ポートを閉じる際にクライアントから送信される JSON リクエストデータ構造です。
 type ClosePortRequest struct {
 	Protocol     string `json:"protocol"`
 	ExternalPort int    `json:"external_port"`
 }
 
-// PortMappingResponse is the JSON payload returned for a port mapping.
+// PortMappingResponse は、ポートマッピング情報の詳細をクライアントに返すための JSON データ構造です。
 type PortMappingResponse struct {
 	Protocol             string `json:"protocol"`
 	ExternalPort         int    `json:"external_port"`
@@ -41,7 +41,7 @@ type PortMappingResponse struct {
 	LeaseDurationSeconds int    `json:"lease_duration_seconds"`
 }
 
-// StatusResponse describes the current discovery and mapping state.
+// StatusResponse は、現在のルーター探索状態、WAN接続インターフェース情報、およびアクティブなポートマッピング一覧を網羅した JSON データ構造です。
 type StatusResponse struct {
 	Discovered  bool                  `json:"discovered"`
 	ServiceType string                `json:"service_type,omitempty"`

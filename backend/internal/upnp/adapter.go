@@ -1,3 +1,4 @@
+// Package upnp は UPnP (Universal Plug and Play) プロトコルの実装（SSDP探索、SOAP要求、ポートマッピング等）を提供します。
 package upnp
 
 import (
@@ -7,20 +8,20 @@ import (
 	"github.com/clagon/port-mapper/backend/internal/application"
 )
 
-// DiscoveryClient adapts UPnP discovery to the application service port.
+// DiscoveryClient は、アプリケーション層の探索インターフェース（application.DiscoveryClient）にUPnP探索の実装を適合させるためのアダプター構造体です。
 type DiscoveryClient struct{}
 
-// NewDiscoveryClient creates a UPnP discovery adapter.
+// NewDiscoveryClient は、UPnP 探索アダプターの新しいインスタンスを作成します。
 func NewDiscoveryClient() DiscoveryClient {
 	return DiscoveryClient{}
 }
 
-// Discover finds a supported UPnP gateway.
+// Discover は、ネットワーク上の適合するUPnPゲートウェイを探索し、ドメイン探索結果モデルを返します。
 func (DiscoveryClient) Discover() (application.DiscoveryResult, error) {
 	return Discover()
 }
 
-// NewSOAPPortMapper adapts a UPnP discovery result to a SOAP-backed port mapper.
+// NewSOAPPortMapper は、UPnP 探索結果からアプリケーション層（application.PortMapper）に適合した SOAP クライアント転送操作インスタンスを生成するファクトリ関数です。
 func NewSOAPPortMapper(result application.DiscoveryResult) application.PortMapper {
 	return &SOAPClient{
 		Endpoint:    result.ControlURL,

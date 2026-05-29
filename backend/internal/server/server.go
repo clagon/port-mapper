@@ -1,3 +1,4 @@
+// Package server は、PortoのHTTP APIサーバーおよびSPA用静的ファイルのルーティングとハンドラーを提供します。
 package server
 
 import (
@@ -9,14 +10,14 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// Server wraps the HTTP handler used by the application.
+// Server は、アプリケーションで使用される HTTP ルーターとリスナー設定をカプセル化する構造体です。
 type Server struct {
 	addr   string
 	echo   *echo.Echo
 	logger *slog.Logger
 }
 
-// New constructs a server bound to the provided listen address.
+// New は、指定されたリスンアドレス、ロガー、および抽象サービスインスタンスを使用して HTTP サーバーインスタンスを構築します。
 func New(addr string, logger *slog.Logger, svc apiService) *Server {
 	if logger == nil {
 		logger = slog.Default()
@@ -31,7 +32,7 @@ func New(addr string, logger *slog.Logger, svc apiService) *Server {
 	return &Server{addr: addr, echo: e, logger: logger}
 }
 
-// Addr returns the configured listen address.
+// Addr は、サーバーがバインドされている、またはバインド予定のリスンアドレスを返します。
 func (s *Server) Addr() string {
 	if s == nil {
 		return ""
@@ -39,7 +40,7 @@ func (s *Server) Addr() string {
 	return s.addr
 }
 
-// Handler returns the server's HTTP handler.
+// Handler は、標準の http.Handler として機能するサーバーの HTTP ハンドラーを返します。
 func (s *Server) Handler() http.Handler {
 	if s == nil || s.echo == nil {
 		return http.NewServeMux()
@@ -47,7 +48,7 @@ func (s *Server) Handler() http.Handler {
 	return s.echo
 }
 
-// ListenAndServe runs the server on its configured address.
+// ListenAndServe は、設定されたアドレスにバインドし、同期的に HTTP サーバーを起動します。
 func (s *Server) ListenAndServe() error {
 	if s == nil || s.echo == nil {
 		return nil
@@ -55,7 +56,7 @@ func (s *Server) ListenAndServe() error {
 	return s.echo.Start(s.addr)
 }
 
-// Serve runs the server on the provided listener.
+// Serve は、提供された既存の net.Listener オブジェクトを利用して HTTP サーバーを起動します（テストやポート自動割り当てで有用）。
 func (s *Server) Serve(ln net.Listener) error {
 	if s == nil || s.echo == nil {
 		return nil

@@ -1,3 +1,4 @@
+// Package config は Porto アプリケーションの設定情報のロード、セーブ、および検証を行います。
 package config
 
 import (
@@ -7,16 +8,16 @@ import (
 
 const defaultListenAddr = "127.0.0.1:8080"
 
-// Config holds runtime settings for the backend.
+// Config は、バックエンドサーバーのランタイム設定を保持する構造体です。
 type Config struct {
 	ListenAddr   string `json:"listen_addr"`
 	AutoDiscover *bool  `json:"auto_discover"`
 }
 
-// BoolPtr returns a pointer to v.
+// BoolPtr は、bool 値のポインタを返す便利なユーティリティ関数です。
 func BoolPtr(v bool) *bool { return &v }
 
-// DefaultConfig returns the application's default configuration.
+// DefaultConfig は、アプリケーションのデフォルト設定値を生成して返します。
 func DefaultConfig() Config {
 	return Config{
 		ListenAddr:   defaultListenAddr,
@@ -24,7 +25,7 @@ func DefaultConfig() Config {
 	}
 }
 
-// WithDefaults fills in zero-value fields with defaults.
+// WithDefaults は、ゼロ値（未設定）のフィールドをデフォルト設定値で補完した新しい Config を返します。
 func (c Config) WithDefaults() Config {
 	defaults := DefaultConfig()
 	if c.ListenAddr == "" {
@@ -36,7 +37,7 @@ func (c Config) WithDefaults() Config {
 	return c
 }
 
-// ValidateLocalListenAddr ensures the backend binds to localhost only.
+// ValidateLocalListenAddr は、セキュリティ確保のため、リスンアドレスがローカルホスト（localhost / 127.0.0.1 / ::1）にのみバインドされていることを強制検証します。
 func ValidateLocalListenAddr(addr string) error {
 	host, _, err := net.SplitHostPort(addr)
 	if err != nil {

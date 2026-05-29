@@ -71,7 +71,7 @@ func fetchLocation(location string, timeout time.Duration) ([]byte, error) {
 	return data, nil
 }
 
-// ParseRootDevice parses a UPnP root device description and selects the best WAN service.
+// ParseRootDevice は、取得した UPnP ルーターデバイス記述（XML）をパースし、最適な WAN ポートマッピング制御サービス（WANIPConnection v2/v1 または WANPPPConnection v1）を優先順位に基づいて自動選択・検証し、その結果を返します。
 func ParseRootDevice(data []byte, baseURL string) (DiscoveryResult, error) {
 	var root rootDevice
 	if err := xml.Unmarshal(data, &root); err != nil {

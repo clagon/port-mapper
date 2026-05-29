@@ -8,11 +8,14 @@ import (
 )
 
 var (
+	// ErrNoGateway は、ネットワーク上で適合するUPnPゲートウェイ（ルーター）が発見できなかったことを表すエラーです。
 	ErrNoGateway      = application.ErrNoGateway
 	errOnlyWFADevices = errors.New("UPnP discovery found only WPS/WFA devices; no InternetGatewayDevice/WAN service responded")
 )
 
-// Discover sends SSDP M-SEARCH requests and returns the first supported gateway it can resolve.
+// Discover は、ネットワーク上のすべてのアクティブなネットワークインターフェース（IPv4/IPv6）に対して SSDP M-SEARCH マルチキャスト要求を送信し、
+// 最初に応答があり、適合するインターネットゲートウェイ（IGD）を検出・解決して返します。
+// SSDP応答がない、またはパースに失敗した場合は、ルーターの既知の制御パスに対するフォールバックプローブ（直接走査）を実行します。
 func Discover() (DiscoveryResult, error) {
 	ifaces, err := discoverInterfaces()
 	if err != nil {

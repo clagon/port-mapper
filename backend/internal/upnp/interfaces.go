@@ -13,6 +13,8 @@ type discoverIPv6Interface struct {
 	Interface  *net.Interface
 }
 
+// discoverInterfaces は、ローカルマシン上の有効な IPv4 ネットワークインターフェース情報を列挙します。
+// ループバックや停止中のNIC、マルチキャスト非対応NICを除外し、探索ソケットのバインドに適したアドレスリストを生成します。
 func discoverInterfaces() ([]discoverInterface, error) {
 	var ifaces []discoverInterface
 	interfaces, err := net.Interfaces()
@@ -50,6 +52,7 @@ func discoverInterfaces() ([]discoverInterface, error) {
 	return ifaces, nil
 }
 
+// discoverIPv6Interfaces は、ローカルマシン上の有効な IPv6 ネットワークインターフェース情報を列挙します。
 func discoverIPv6Interfaces() ([]discoverIPv6Interface, error) {
 	var ifaces []discoverIPv6Interface
 	interfaces, err := net.Interfaces()

@@ -2,7 +2,7 @@ package server
 
 import "github.com/labstack/echo/v4"
 
-// registerRoutes builds the HTTP routes for the application.
+// registerRoutes は、Echo Web フレームワークインスタンスに対して API エンドポイントとSPA静的ファイルのルートを登録します。
 func registerRoutes(e *echo.Echo, svc apiService) {
 	h := newAPIHandlers(svc)
 	e.GET("/api/health", h.health)

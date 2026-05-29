@@ -9,6 +9,8 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+// apiService は、HTTPハンドラーがビジネスロジックを実行するために呼び出す抽象サービスインターフェースです。
+// これにより、HTTPプレゼンテーション層が具体的なドメインロジック実装（service.Service）から疎結合化されます。
 type apiService interface {
 	Status() service.Status
 	Discover() (service.Status, error)

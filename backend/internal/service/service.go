@@ -1,3 +1,4 @@
+// Package service は Porto のコアビジネスロジックであるルーター探索状態の管理、ポートマッピング要求の検証・実行、設定の永続化連携を実装します。
 package service
 
 import (
@@ -13,12 +14,13 @@ import (
 	"github.com/clagon/port-mapper/backend/internal/config"
 )
 
-// SettingsStore persists user-editable settings.
+// SettingsStore は、ユーザーが変更可能な環境設定情報を永続化（保存）するためのインターフェースです。
 type SettingsStore interface {
+	// Save は提供された設定オブジェクトを永続的ストレージに保存します。
 	Save(config.Config) error
 }
 
-// Status describes the current discovery and mapping state.
+// Status は、現在アクティブなゲートウェイ（ルーター）探索結果と、登録されているポートマッピング一覧などのアプリケーション状態を表す構造体です。
 type Status struct {
 	Discovered  bool                      `json:"discovered"`
 	ServiceType string                    `json:"service_type,omitempty"`
@@ -28,6 +30,7 @@ type Status struct {
 	Ports       []application.PortMapping `json:"ports"`
 }
 
+// Options は、Service の生成時に注入される依存関係および設定を指定するための構造体です。
 type Options struct {
 	ConfigPath    string
 	Config        config.Config
@@ -38,6 +41,7 @@ type Options struct {
 	PortMapperFactory application.PortMapperFactory
 }
 
+// Service は、Porto のポートマッピング機能の中核であり、ルーター探索、ポートの開閉処理、メモリ上での状態の同期を担当するドメインサービスです。
 type Service struct {
 	mu                sync.RWMutex
 	cfg               config.Config
@@ -55,6 +59,7 @@ type Service struct {
 // service 内で gateway 未選択を表すエラー。UPnP discovery 自体の失敗は application.ErrNoGateway を使う。
 var errNoGateway = errors.New("no UPnP gateway discovered")
 
+// New は、指定された Options を使用して Service インスタンスを新しく生成します。
 func New(opts Options) *Service {
 	logger := opts.Logger
 	if logger == nil {
@@ -77,12 +82,14 @@ func New(opts Options) *Service {
 	}
 }
 
+// Settings は、現在の環境設定のコピーを安全に返します。
 func (s *Service) Settings() config.Config {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.cfg.WithDefaults()
 }
 
+// UpdateSettings は、環境設定を検証し、設定永続化ストアに保存した後にメモリ上のキャッシュ設定値を更新します。
 func (s *Service) UpdateSettings(next config.Config) (config.Config, error) {
 	next = next.WithDefaults()
 	if err := config.ValidateLocalListenAddr(next.ListenAddr); err != nil {
@@ -106,6 +113,7 @@ func (s *Service) UpdateSettings(next config.Config) (config.Config, error) {
 	return next, nil
 }
 
+// Status は、現在検知されているルーター探索状態や登録されているポートマッピング一覧を安全に構築して返します。
 func (s *Service) Status() Status {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -123,6 +131,7 @@ func (s *Service) Status() Status {
 	return resp
 }
 
+// Discover は、ネットワーク上のUPnPデバイス探索を実行し、ルーターの発見、グローバルIPおよびローカルIPの自動特定、ルーター既存転送ルールの同期を行います。
 func (s *Service) Discover() (Status, error) {
 	if s.discovery == nil {
 		return s.Status(), errors.New("discovery client not configured")
@@ -191,6 +200,7 @@ func (s *Service) Discover() (Status, error) {
 	return s.Status(), nil
 }
 
+// OpenPort は、提供されたポートマッピングの入力値を検証し、接続されたルーターへポート開放ルールを追加した後に、メモリ上のマッピング一覧を更新します。
 func (s *Service) OpenPort(mapping application.PortMapping) (Status, error) {
 	resolvedIP, err := s.resolveInternalIP(mapping.InternalIP)
 	if err != nil {
@@ -224,6 +234,7 @@ func (s *Service) OpenPort(mapping application.PortMapping) (Status, error) {
 	return s.Status(), nil
 }
 
+// ClosePort は、提供されたポートマッピング削除リクエスト（プロトコルおよび外部ポート）を検証し、接続されたルーターから該当転送ルールを削除してマッピング一覧から除外します。
 func (s *Service) ClosePort(mapping application.PortMapping) (Status, error) {
 	if err := validateDeleteRequest(mapping); err != nil {
 		return Status{}, err

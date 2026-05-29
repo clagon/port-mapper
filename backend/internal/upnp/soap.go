@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// SOAPClient performs UPnP SOAP requests against a discovered control URL.
+// SOAPClient は、ルーターの制御 URL に対して UPnP SOAP (Simple Object Access Protocol) リクエストを実行するためのクライアント構造体です。
 type SOAPClient struct {
 	Endpoint    string
 	ServiceType string
@@ -24,7 +24,7 @@ func (c *SOAPClient) client() *http.Client {
 	return &http.Client{Timeout: 5 * time.Second}
 }
 
-// GetExternalIPAddress fetches the public IP from the gateway.
+// GetExternalIPAddress は、ルーターの WAN グローバル（外部）IP アドレスを取得するための SOAP アクション（GetExternalIPAddress）を呼び出します。
 func (c *SOAPClient) GetExternalIPAddress() (string, error) {
 	body, err := c.call("GetExternalIPAddress", nil)
 	if err != nil {
@@ -50,7 +50,7 @@ func (c *SOAPClient) GetExternalIPAddress() (string, error) {
 	return resp.Body.Response.ExternalIP, nil
 }
 
-// AddPortMapping sends a SOAP AddPortMapping request.
+// AddPortMapping は、ルーターに新しいポート転送ルールを設定する SOAP アクション（AddPortMapping）を呼び出します。
 func (c *SOAPClient) AddPortMapping(m PortMapping) error {
 	if err := ValidatePortMapping(m); err != nil {
 		return err
@@ -68,7 +68,7 @@ func (c *SOAPClient) AddPortMapping(m PortMapping) error {
 	return err
 }
 
-// DeletePortMapping sends a SOAP DeletePortMapping request.
+// DeletePortMapping は、指定されたプロトコルと外部ポートに対応するポート転送ルールを削除する SOAP アクション（DeletePortMapping）を呼び出します。
 func (c *SOAPClient) DeletePortMapping(protocol string, externalPort int) error {
 	if err := validateProtocol(protocol); err != nil {
 		return err
@@ -84,7 +84,7 @@ func (c *SOAPClient) DeletePortMapping(protocol string, externalPort int) error 
 	return err
 }
 
-// GetGenericPortMappingEntry fetches a port mapping entry by index from the gateway.
+// GetGenericPortMappingEntry は、ルーターのインデックスに基づき、現在のアクティブなポートマッピング一覧を１つずつ取得する SOAP アクション（GetGenericPortMappingEntry）を呼び出します（自動同期用）。
 func (c *SOAPClient) GetGenericPortMappingEntry(index int) (PortMapping, error) {
 	body, err := c.call("GetGenericPortMappingEntry", map[string]string{
 		"NewPortMappingIndex": fmt.Sprintf("%d", index),

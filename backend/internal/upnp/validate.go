@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// ValidatePortMapping checks the mapping for basic safety and protocol correctness.
+// ValidatePortMapping は、入力されたポートマッピング要求のプロトコル、ポート番号、IPアドレス、リースタイムが、UPnPのプロトコル規則に合致しているかを事前にチェックします。
 func ValidatePortMapping(m PortMapping) error {
 	if err := validateProtocol(m.Protocol); err != nil {
 		return err

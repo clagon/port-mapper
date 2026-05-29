@@ -1,3 +1,4 @@
+// Package app は、Porto アプリケーション全体のコンテナ、ライフサイクル管理、および起動処理（DIなど）を提供します。
 package app
 
 import (
@@ -15,12 +16,13 @@ import (
 
 const defaultListenAddr = "127.0.0.1:8080"
 
-// BrowserOpener opens a URL in the user's browser.
+// BrowserOpener は、指定された URL をユーザーのブラウザで開くためのインターフェースです。
 type BrowserOpener interface {
+	// Open はブラウザでURLを開きます。
 	Open(string) error
 }
 
-// AppOptions configures a new App.
+// AppOptions は、App の初期化を設定するためのオプションです。
 type AppOptions struct {
 	ListenAddr    string
 	ConfigPath    string
@@ -29,7 +31,7 @@ type AppOptions struct {
 	Logger        *slog.Logger
 }
 
-// App is the top-level application container.
+// App は、アプリケーション全体の最上位コンテナであり、サーバーとサービスのライフサイクルを統括します。
 type App struct {
 	cfg           config.Config
 	server        *server.Server
@@ -40,7 +42,7 @@ type App struct {
 	logger        *slog.Logger
 }
 
-// New constructs a new App using the provided options.
+// New は、指定されたオプションを使用して新しい App インスタンスを構築します。
 func New(opts AppOptions) (*App, error) {
 	configPath := opts.ConfigPath
 	if configPath == "" {
@@ -88,7 +90,7 @@ func New(opts AppOptions) (*App, error) {
 	}, nil
 }
 
-// ConfigPath returns the config file path used by the application.
+// ConfigPath は、アプリケーションが使用している設定ファイルのパスを返します。
 func (a *App) ConfigPath() string {
 	if a == nil {
 		return ""
@@ -96,7 +98,7 @@ func (a *App) ConfigPath() string {
 	return a.configPath
 }
 
-// Addr returns the configured listen address.
+// Addr は、サーバーがバインドされている、またはバインド予定のリスンアドレスを返します。
 func (a *App) Addr() string {
 	if a == nil || a.server == nil {
 		return ""
@@ -104,7 +106,7 @@ func (a *App) Addr() string {
 	return a.server.Addr()
 }
 
-// Handler returns the application's HTTP handler.
+// Handler は、アプリケーションの HTTP ハンドラー（Router）を返します。
 func (a *App) Handler() http.Handler {
 	if a == nil || a.server == nil {
 		return http.NewServeMux()
@@ -112,7 +114,7 @@ func (a *App) Handler() http.Handler {
 	return a.server.Handler()
 }
 
-// Start performs one-time startup actions like opening the browser.
+// Start は、ブラウザの自動起動など、サーバー実行前の初期起動処理を行います。
 func (a *App) Start() error {
 	if a == nil || !a.openBrowser || a.browserOpener == nil {
 		return nil
@@ -123,7 +125,7 @@ func (a *App) Start() error {
 	return a.browserOpener.Open(a.browserURL())
 }
 
-// Run starts the HTTP server.
+// Run は、HTTP サーバーのリスナーを起動し、バックグラウンドでのルーター自動検出を開始してリクエストの待機を開始します。
 func (a *App) Run() error {
 	if a == nil || a.server == nil {
 		return nil

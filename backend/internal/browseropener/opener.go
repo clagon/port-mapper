@@ -1,3 +1,4 @@
+// Package browseropener は OS ごとの標準ブラウザの自動起動ユーティリティを提供します。
 package browseropener
 
 import (
@@ -6,13 +7,13 @@ import (
 	"runtime"
 )
 
-// Opener opens a URL in the user's default browser.
+// Opener は、ユーザーの既定のWebブラウザで指定URLを開くためのオブジェクトです。
 type Opener struct{}
 
-// New returns a cross-platform browser opener.
+// New は、マルチプラットフォーム（Windows, macOS, Linux）対応のブラウザ起動オブジェクトを生成します。
 func New() Opener { return Opener{} }
 
-// Open starts the platform browser command asynchronously.
+// Open は、実行中のプラットフォームに対応したOSコマンドを非同期的に実行し、Webブラウザで指定URLを開きます。
 func (Opener) Open(url string) error {
 	cmdName, args, err := commandForGOOS(runtime.GOOS, url)
 	if err != nil {

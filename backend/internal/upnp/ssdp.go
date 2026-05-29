@@ -20,6 +20,8 @@ const (
 	ssdpReadWindow = 800 * time.Millisecond
 )
 
+// ssdpSearchTargets は、ポート開放をサポートする一般的なインターネットゲートウェイデバイス（IGD）を検出するために、
+// SSDP M-SEARCH で照会する UPnP デバイスタイプおよびサービスタイプの一覧です（優先度順に走査されます）。
 var ssdpSearchTargets = []string{
 	"urn:schemas-upnp-org:device:InternetGatewayDevice:2",
 	"urn:schemas-upnp-org:device:InternetGatewayDevice:1",
@@ -41,6 +43,8 @@ type ssdpResponse struct {
 	SearchTarget string
 }
 
+// collectSSDPResponses は、指定された IPv4 インターフェース上で SSDP M-SEARCH 要求を送信し、
+// 一定の受信ウィンドウ時間（800ms）の間にルーターなどのUPnPデバイスから返されたすべての SSDP 応答を収集して返します。
 func collectSSDPResponses(iface discoverInterface) ([]ssdpResponse, error) {
 	conn, err := net.ListenUDP("udp4", iface.ListenAddr)
 	if err != nil {
@@ -104,6 +108,8 @@ func collectSSDPResponses(iface discoverInterface) ([]ssdpResponse, error) {
 	return responses, nil
 }
 
+// collectSSDPResponsesIPv6 は、指定された IPv6 インターフェース上で SSDP M-SEARCH 要求をマルチキャスト送信し、
+// 一定の受信ウィンドウ時間の間に返されたすべての IPv6 SSDP 応答を収集して返します。
 func collectSSDPResponsesIPv6(iface discoverIPv6Interface) ([]ssdpResponse, error) {
 	conn, err := net.ListenUDP("udp6", iface.ListenAddr)
 	if err != nil {
@@ -184,6 +190,8 @@ func sortSSDPResponses(responses []ssdpResponse) {
 	})
 }
 
+// ssdpCandidateScore は、得られた SSDP 応答のサービス適合度に応じてスコアを決定します。
+// WANIPConnection (v2/v1) が最もポート転送に適合するため、高スコアを獲得して優先的に選択されます。
 func ssdpCandidateScore(response ssdpResponse) int {
 	text := strings.ToLower(response.SearchTarget + " " + response.ST + " " + response.USN + " " + response.Location)
 	switch {

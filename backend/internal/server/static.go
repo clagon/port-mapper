@@ -12,8 +12,10 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+// assetsFS はフロントエンドの静的ファイルを格納した組み込みファイルシステムへの参照であり、テスト時にモックに置換可能です。
 var assetsFS fs.FS = assets.FS
 
+// staticHandler は、埋め込まれたフロントエンドSPA静的ファイルを配信し、存在しないルートへのリクエスト時には `index.html` にフォールバックするSPA用ルーターハンドラーを提供します。
 func staticHandler() echo.HandlerFunc {
 	sub, err := fs.Sub(assetsFS, "static")
 	if err != nil {
