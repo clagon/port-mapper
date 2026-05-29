@@ -23,6 +23,7 @@ type PortMapper interface {
 	GetExternalIPAddress() (string, error)
 	AddPortMapping(upnp.PortMapping) error
 	DeletePortMapping(protocol string, externalPort int) error
+	GetGenericPortMappingEntry(index int) (upnp.PortMapping, error)
 }
 
 type PortMapperFactory func(upnp.DiscoveryResult) PortMapper
@@ -43,6 +44,7 @@ type service struct {
 	portMapperFactory PortMapperFactory
 	gateway           *upnp.DiscoveryResult
 	externalIP        string
+	localIP           string
 	ports             []upnp.PortMapping
 	logger            *slog.Logger
 }
@@ -129,6 +131,7 @@ func (s *service) status() StatusResponse {
 		resp.ServiceType = s.gateway.ServiceType
 		resp.ControlURL = s.gateway.ControlURL
 		resp.ExternalIP = s.externalIP
+		resp.LocalIP = s.localIP
 	}
 	return resp
 }
@@ -156,17 +159,40 @@ func (s *service) discover() (StatusResponse, error) {
 		}
 	}
 
+	// 自身のローカルIPアドレスの特定
+	var localIP string
+	if u, err := url.Parse(result.ControlURL); err == nil {
+		if conn, err := net.Dial("udp", u.Host); err == nil {
+			if localAddr, ok := conn.LocalAddr().(*net.UDPAddr); ok && !localAddr.IP.IsUnspecified() {
+				localIP = localAddr.IP.String()
+			}
+			conn.Close()
+		}
+	}
+	if localIP == "" {
+		if ip, err := s.fallbackLocalIP(); err == nil {
+			localIP = ip
+		}
+	}
+
 	s.mu.Lock()
 	resultCopy := result
 	s.gateway = &resultCopy
 	s.externalIP = externalIP
+	s.localIP = localIP
 	s.mu.Unlock()
+
+	// ルーターからのポートマッピング自動同期
+	if mapper != nil && localIP != "" {
+		s.syncActivePorts(mapper, localIP)
+	}
 
 	if s.logger != nil {
 		s.logger.Info("router discovered",
 			"service_type", result.ServiceType,
 			"control_url", result.ControlURL,
 			"external_ip", externalIP,
+			"local_ip", localIP,
 		)
 	}
 	return s.status(), nil
@@ -362,3 +388,38 @@ func (s *service) fallbackLocalIP() (string, error) {
 	}
 	return "", fmt.Errorf("no suitable local IP address found")
 }
+
+func (s *service) syncActivePorts(mapper PortMapper, localIP string) {
+	if mapper == nil || localIP == "" {
+		return
+	}
+
+	var syncedPorts []upnp.PortMapping
+	for i := 0; ; i++ {
+		entry, err := mapper.GetGenericPortMappingEntry(i)
+		if err != nil {
+			// インデックス範囲外など、ルーターがこれ以上エントリーを持っていない場合は走査を終了
+			if s.logger != nil {
+				s.logger.Debug("finished fetching port mapping entries from router", "index", i, "error", err)
+			}
+			break
+		}
+
+		// このローカルPCのIPアドレス宛の転送ルールのみを抽出
+		if entry.InternalIP == localIP {
+			syncedPorts = append(syncedPorts, entry)
+		}
+
+		// 安全のための上限 (無限ループ防止)
+		if i >= 256 {
+			break
+		}
+	}
+
+	s.mu.Lock()
+	for _, entry := range syncedPorts {
+		s.ports = upsertMapping(s.ports, entry)
+	}
+	s.mu.Unlock()
+}
+

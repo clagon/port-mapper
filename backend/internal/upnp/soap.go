@@ -84,6 +84,49 @@ func (c *SOAPClient) DeletePortMapping(protocol string, externalPort int) error 
 	return err
 }
 
+// GetGenericPortMappingEntry fetches a port mapping entry by index from the gateway.
+func (c *SOAPClient) GetGenericPortMappingEntry(index int) (PortMapping, error) {
+	body, err := c.call("GetGenericPortMappingEntry", map[string]string{
+		"NewPortMappingIndex": fmt.Sprintf("%d", index),
+	})
+	if err != nil {
+		return PortMapping{}, err
+	}
+
+	var resp struct {
+		Body struct {
+			Response struct {
+				RemoteHost     string `xml:"NewRemoteHost"`
+				ExternalPort   int    `xml:"NewExternalPort"`
+				Protocol       string `xml:"NewProtocol"`
+				InternalPort   int    `xml:"NewInternalPort"`
+				InternalClient string `xml:"NewInternalClient"`
+				Enabled        string `xml:"NewEnabled"` // "1" or "0"
+				Description    string `xml:"NewPortMappingDescription"`
+				LeaseDuration  int    `xml:"NewLeaseDuration"`
+			} `xml:"GetGenericPortMappingEntryResponse"`
+			Fault *soapFault `xml:"Fault"`
+		} `xml:"Body"`
+	}
+
+	if err := xml.Unmarshal(body, &resp); err != nil {
+		return PortMapping{}, fmt.Errorf("parse soap response: %w", err)
+	}
+	if resp.Body.Fault != nil {
+		return PortMapping{}, resp.Body.Fault
+	}
+
+	m := PortMapping{
+		Protocol:             resp.Body.Response.Protocol,
+		ExternalPort:         resp.Body.Response.ExternalPort,
+		InternalIP:           resp.Body.Response.InternalClient,
+		InternalPort:         resp.Body.Response.InternalPort,
+		Description:          resp.Body.Response.Description,
+		LeaseDurationSeconds: resp.Body.Response.LeaseDuration,
+	}
+	return m, nil
+}
+
 func (c *SOAPClient) call(action string, body map[string]string) ([]byte, error) {
 	envelope, err := buildSOAPEnvelope(action, c.ServiceType, body)
 	if err != nil {

@@ -14,9 +14,10 @@ type ActionResponse struct {
 
 // StatusResponse describes the current discovery and mapping state.
 type StatusResponse struct {
-	Discovered bool              `json:"discovered"`
-	ServiceType string            `json:"service_type,omitempty"`
-	ControlURL  string            `json:"control_url,omitempty"`
-	ExternalIP  string            `json:"external_ip,omitempty"`
+	Discovered  bool               `json:"discovered"`
+	ServiceType string             `json:"service_type,omitempty"`
+	ControlURL  string             `json:"control_url,omitempty"`
+	ExternalIP  string             `json:"external_ip,omitempty"`
+	LocalIP     string             `json:"local_ip,omitempty"`
 	Ports       []upnp.PortMapping `json:"ports"`
 }

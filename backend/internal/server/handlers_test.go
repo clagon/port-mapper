@@ -3,8 +3,10 @@ package server
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -62,6 +64,15 @@ func (f *fakeMapper) DeletePortMapping(protocol string, externalPort int) error 
 	defer f.mu.Unlock()
 	f.deleteCalls = append(f.deleteCalls, deleteCall{protocol: protocol, externalPort: externalPort})
 	return f.deleteErr
+}
+
+func (f *fakeMapper) GetGenericPortMappingEntry(index int) (upnp.PortMapping, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if index < 0 || index >= len(f.addCalls) {
+		return upnp.PortMapping{}, fmt.Errorf("no such entry")
+	}
+	return f.addCalls[index], nil
 }
 
 func newTestServer(t *testing.T, cfgPath string, cfg config.Config, discovery DiscoveryClient, mapper *fakeMapper) *Server {
@@ -208,6 +219,106 @@ func TestDiscoveryAndMappingEndpoints(t *testing.T) {
 		}
 		if got.ExternalIP != mapper.externalIP {
 			t.Fatalf("external_ip = %q, want %q", got.ExternalIP, mapper.externalIP)
+		}
+		if got.LocalIP == "" {
+			t.Fatal("local_ip should not be empty after discover")
+		}
+	})
+
+	t.Run("discover synchronizes active ports from router", func(t *testing.T) {
+		dir := t.TempDir()
+		cfgPath := filepath.Join(dir, "config2.json")
+		
+		// 自身のローカルIPを一時的に特定
+		var tempLocalIP string
+		if conn, err := net.Dial("udp", "192.168.1.1:1900"); err == nil {
+			if localAddr, ok := conn.LocalAddr().(*net.UDPAddr); ok && !localAddr.IP.IsUnspecified() {
+				tempLocalIP = localAddr.IP.String()
+			}
+			conn.Close()
+		}
+		if tempLocalIP == "" {
+			// fallback
+			ifaces, _ := net.Interfaces()
+			for _, iface := range ifaces {
+				if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
+					continue
+				}
+				addrs, _ := iface.Addrs()
+				for _, addr := range addrs {
+					var ip net.IP
+					switch v := addr.(type) {
+					case *net.IPNet:
+						ip = v.IP
+					case *net.IPAddr:
+						ip = v.IP
+					}
+					if ip != nil && !ip.IsLoopback() && ip.To4() != nil {
+						tempLocalIP = ip.String()
+						break
+					}
+				}
+				if tempLocalIP != "" {
+					break
+				}
+			}
+		}
+
+		if tempLocalIP == "" {
+			t.Skip("Skipping active ports sync test: no suitable local IP found")
+		}
+
+		syncDiscovery := &fakeDiscovery{
+			result: upnp.DiscoveryResult{
+				ServiceType: "urn:schemas-upnp-org:service:WANIPConnection:2",
+				ControlURL:  "http://192.168.1.1:1900/upnp/control/WANIPConn2",
+			},
+		}
+
+		syncMapper := &fakeMapper{
+			externalIP: "203.0.113.42",
+			addCalls: []upnp.PortMapping{
+				{
+					Protocol:             "TCP",
+					ExternalPort:         7777,
+					InternalIP:           tempLocalIP, // このPC宛て（同期対象）
+					InternalPort:         7777,
+					Description:          "sync test 1",
+					LeaseDurationSeconds: 0,
+				},
+				{
+					Protocol:             "UDP",
+					ExternalPort:         8888,
+					InternalIP:           "192.168.1.99", // 別のPC宛て（除外対象）
+					InternalPort:         8888,
+					Description:          "sync test 2",
+					LeaseDurationSeconds: 0,
+				},
+			},
+		}
+
+		syncSrv := newTestServer(t, cfgPath, config.DefaultConfig(), syncDiscovery, syncMapper)
+
+		// discover エンドポイントを呼び出す
+		req := httptest.NewRequest(http.MethodPost, "/api/discover", nil)
+		rec := httptest.NewRecorder()
+		syncSrv.Handler().ServeHTTP(rec, req)
+		if rec.Code != http.StatusAccepted {
+			t.Fatalf("status = %d, want %d", rec.Code, http.StatusAccepted)
+		}
+
+		var got StatusResponse
+		decodeJSON(t, rec.Body, &got)
+
+		// ルーターから tempLocalIP 宛ての 7777 のみが同期されていることを確認
+		if len(got.Ports) != 1 {
+			t.Fatalf("synced ports count = %d, want 1", len(got.Ports))
+		}
+		if got.Ports[0].ExternalPort != 7777 {
+			t.Fatalf("synced port = %d, want 7777", got.Ports[0].ExternalPort)
+		}
+		if got.Ports[0].Description != "sync test 1" {
+			t.Fatalf("synced port desc = %q, want %q", got.Ports[0].Description, "sync test 1")
 		}
 	})
 

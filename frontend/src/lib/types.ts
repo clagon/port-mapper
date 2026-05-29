@@ -16,6 +16,7 @@ export type StatusResponse = {
   service_type?: string;
   control_url?: string;
   external_ip?: string;
+  local_ip?: string;
   ports: PortMapping[];
 };
 
