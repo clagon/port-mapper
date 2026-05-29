@@ -4,11 +4,8 @@ import (
 	"net/http"
 
 	"github.com/clagon/port-mapper/backend/internal/config"
-<<<<<<< HEAD
-=======
 	"github.com/clagon/port-mapper/backend/internal/service"
 	"github.com/clagon/port-mapper/backend/internal/upnp"
->>>>>>> main
 	"github.com/labstack/echo/v4"
 )
 
@@ -34,7 +31,7 @@ func (h *apiHandlers) health(c echo.Context) error {
 }
 
 func (h *apiHandlers) status(c echo.Context) error {
-	return c.JSON(http.StatusOK, h.svc.Status())
+	return c.JSON(http.StatusOK, newStatusResponse(h.svc.Status()))
 }
 
 func (h *apiHandlers) discover(c echo.Context) error {
@@ -42,7 +39,7 @@ func (h *apiHandlers) discover(c echo.Context) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadGateway, err.Error())
 	}
-	return c.JSON(http.StatusAccepted, status)
+	return c.JSON(http.StatusAccepted, newStatusResponse(status))
 }
 
 func (h *apiHandlers) portsOpen(c echo.Context) error {
@@ -50,15 +47,11 @@ func (h *apiHandlers) portsOpen(c echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
-<<<<<<< HEAD
-	status, err := h.svc.openPort(req.toPortMapping())
-=======
-	status, err := h.svc.OpenPort(req)
->>>>>>> main
+	status, err := h.svc.OpenPort(req.toPortMapping())
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
-	return c.JSON(http.StatusAccepted, status)
+	return c.JSON(http.StatusAccepted, newStatusResponse(status))
 }
 
 func (h *apiHandlers) portsClose(c echo.Context) error {
@@ -66,15 +59,11 @@ func (h *apiHandlers) portsClose(c echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
-<<<<<<< HEAD
-	status, err := h.svc.closePort(req.toPortMapping())
-=======
-	status, err := h.svc.ClosePort(req)
->>>>>>> main
+	status, err := h.svc.ClosePort(req.toPortMapping())
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
-	return c.JSON(http.StatusAccepted, status)
+	return c.JSON(http.StatusAccepted, newStatusResponse(status))
 }
 
 func (h *apiHandlers) getSettings(c echo.Context) error {

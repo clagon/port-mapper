@@ -1,6 +1,9 @@
 package server
 
-import "github.com/clagon/port-mapper/backend/internal/service"
+import (
+	"github.com/clagon/port-mapper/backend/internal/service"
+	"github.com/clagon/port-mapper/backend/internal/upnp"
+)
 
 // HealthResponse is the JSON payload returned by GET /api/health.
 type HealthResponse struct {
@@ -39,7 +42,6 @@ type PortMappingResponse struct {
 }
 
 // StatusResponse describes the current discovery and mapping state.
-<<<<<<< HEAD
 type StatusResponse struct {
 	Discovered  bool                  `json:"discovered"`
 	ServiceType string                `json:"service_type,omitempty"`
@@ -85,6 +87,14 @@ func newPortMappingResponses(mappings []upnp.PortMapping) []PortMappingResponse 
 	}
 	return ports
 }
-=======
-type StatusResponse = service.Status
->>>>>>> main
+
+func newStatusResponse(s service.Status) StatusResponse {
+	return StatusResponse{
+		Discovered:  s.Discovered,
+		ServiceType: s.ServiceType,
+		ControlURL:  s.ControlURL,
+		ExternalIP:  s.ExternalIP,
+		LocalIP:     s.LocalIP,
+		Ports:       newPortMappingResponses(s.Ports),
+	}
+}

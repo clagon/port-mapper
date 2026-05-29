@@ -136,7 +136,7 @@ func (s *Service) Status() Status {
 
 	resp := Status{
 		Discovered: s.gateway != nil,
-		Ports:      newPortMappingResponses(s.ports),
+		Ports:      append([]upnp.PortMapping{}, s.ports...),
 	}
 	if s.gateway != nil {
 		resp.ServiceType = s.gateway.ServiceType
