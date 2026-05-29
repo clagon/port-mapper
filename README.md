@@ -12,7 +12,17 @@ A small local UPnP port-mapping tool for Linux, macOS, and Windows.
 
 ## Quick start
 
-Requires Go 1.23 or newer.
+Requires Go 1.23 or newer. Building the embedded UI also requires Node.js and npm.
+
+Build the frontend into the backend embed directory:
+
+```bash
+cd frontend
+npm install
+npm run build
+```
+
+The frontend build output is generated under `backend/assets/static/` and is intentionally ignored by Git. Only `.gitkeep` is tracked so a clean checkout still has a valid embed directory.
 
 ```bash
 cd backend

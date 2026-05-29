@@ -6,9 +6,16 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"testing/fstest"
 )
 
 func TestStatic(t *testing.T) {
+	origAssetsFS := assetsFS
+	assetsFS = fstest.MapFS{
+		"static/index.html": {Data: []byte("<!doctype html><title>port-mapper</title>")},
+	}
+	t.Cleanup(func() { assetsFS = origAssetsFS })
+
 	tests := []struct {
 		name       string
 		path       string

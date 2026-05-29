@@ -12,7 +12,7 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-var assetsFS = assets.FS
+var assetsFS fs.FS = assets.FS
 
 func staticHandler() echo.HandlerFunc {
 	sub, err := fs.Sub(assetsFS, "static")
