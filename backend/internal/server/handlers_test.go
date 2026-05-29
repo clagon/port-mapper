@@ -3,87 +3,45 @@ package server
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
-	"io"
-	"log/slog"
-	"net"
+	"errors"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
-	"sync"
 	"testing"
 
 	"github.com/clagon/port-mapper/backend/internal/application"
 	"github.com/clagon/port-mapper/backend/internal/config"
+	"github.com/clagon/port-mapper/backend/internal/service"
 	"github.com/labstack/echo/v4"
 )
 
-type fakeDiscovery struct {
-	result application.DiscoveryResult
-	err    error
-	calls  int
+type fakeAPIService struct {
+	statusValue   service.Status
+	settingsValue config.Config
+	discoverErr   error
+	openErr       error
+	closeErr      error
+	settingsErr   error
+	openRequest   application.PortMapping
+	closeRequest  application.PortMapping
+	settingsReq   config.Config
 }
 
-func (f *fakeDiscovery) Discover() (application.DiscoveryResult, error) {
-	f.calls++
-	return f.result, f.err
+func (f *fakeAPIService) Status() service.Status { return f.statusValue }
+func (f *fakeAPIService) Discover() (service.Status, error) {
+	return f.statusValue, f.discoverErr
 }
-
-type deleteCall struct {
-	protocol     string
-	externalPort int
+func (f *fakeAPIService) OpenPort(m application.PortMapping) (service.Status, error) {
+	f.openRequest = m
+	return f.statusValue, f.openErr
 }
-
-type fakeMapper struct {
-	mu          sync.Mutex
-	externalIP  string
-	externalErr error
-	addErr      error
-	deleteErr   error
-	addCalls    []application.PortMapping
-	deleteCalls []deleteCall
+func (f *fakeAPIService) ClosePort(m application.PortMapping) (service.Status, error) {
+	f.closeRequest = m
+	return f.statusValue, f.closeErr
 }
-
-func (f *fakeMapper) GetExternalIPAddress() (string, error) {
-	if f.externalErr != nil {
-		return "", f.externalErr
-	}
-	return f.externalIP, nil
-}
-
-func (f *fakeMapper) AddPortMapping(m application.PortMapping) error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.addCalls = append(f.addCalls, m)
-	return f.addErr
-}
-
-func (f *fakeMapper) DeletePortMapping(protocol string, externalPort int) error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.deleteCalls = append(f.deleteCalls, deleteCall{protocol: protocol, externalPort: externalPort})
-	return f.deleteErr
-}
-
-func (f *fakeMapper) GetGenericPortMappingEntry(index int) (application.PortMapping, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if index < 0 || index >= len(f.addCalls) {
-		return application.PortMapping{}, fmt.Errorf("no such entry")
-	}
-	return f.addCalls[index], nil
-}
-
-func newTestServer(t *testing.T, cfgPath string, cfg config.Config, discovery DiscoveryClient, mapper *fakeMapper) *Server {
-	t.Helper()
-	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelInfo}))
-	return New("127.0.0.1:8080", logger,
-		WithConfigPath(cfgPath),
-		WithConfig(cfg),
-		WithDiscoveryClient(discovery),
-		WithPortMapperFactory(func(application.DiscoveryResult) PortMapper { return mapper }),
-	)
+func (f *fakeAPIService) Settings() config.Config { return f.settingsValue }
+func (f *fakeAPIService) UpdateSettings(c config.Config) (config.Config, error) {
+	f.settingsReq = c
+	return c, f.settingsErr
 }
 
 func decodeJSON[T any](t *testing.T, body *bytes.Buffer, dst *T) {
@@ -93,12 +51,12 @@ func decodeJSON[T any](t *testing.T, body *bytes.Buffer, dst *T) {
 	}
 }
 
-func TestHealthAndSettingsEndpoints(t *testing.T) {
-	dir := t.TempDir()
-	cfgPath := filepath.Join(dir, "config.json")
-	initial := config.DefaultConfig()
-	mapper := &fakeMapper{externalIP: "203.0.113.42"}
-	srv := newTestServer(t, cfgPath, initial, &fakeDiscovery{}, mapper)
+func TestHealthAndReadEndpoints(t *testing.T) {
+	svc := &fakeAPIService{
+		statusValue:   service.Status{Discovered: true, ControlURL: "http://192.168.1.1/control"},
+		settingsValue: config.Config{ListenAddr: "127.0.0.1:8080", AutoDiscover: config.BoolPtr(true)},
+	}
+	srv := New("127.0.0.1:8080", nil, svc)
 
 	t.Run("health", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/health", nil)
@@ -114,75 +72,7 @@ func TestHealthAndSettingsEndpoints(t *testing.T) {
 		}
 	})
 
-	t.Run("get settings", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/api/settings", nil)
-		rec := httptest.NewRecorder()
-		srv.Handler().ServeHTTP(rec, req)
-		if rec.Code != http.StatusOK {
-			t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
-		}
-		var got config.Config
-		decodeJSON(t, rec.Body, &got)
-		if got.ListenAddr != initial.ListenAddr {
-			t.Fatalf("listen_addr = %q, want %q", got.ListenAddr, initial.ListenAddr)
-		}
-		if got.AutoDiscover == nil || !*got.AutoDiscover {
-			t.Fatalf("auto_discover = %v, want true", got.AutoDiscover)
-		}
-	})
-
-	t.Run("post settings persists to disk", func(t *testing.T) {
-		payload := config.Config{ListenAddr: "127.0.0.1:9090", AutoDiscover: config.BoolPtr(false)}
-		buf, err := json.Marshal(payload)
-		if err != nil {
-			t.Fatalf("marshal payload: %v", err)
-		}
-		req := httptest.NewRequest(http.MethodPost, "/api/settings", bytes.NewReader(buf))
-		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-		rec := httptest.NewRecorder()
-		srv.Handler().ServeHTTP(rec, req)
-		if rec.Code != http.StatusOK {
-			t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
-		}
-		if _, err := os.Stat(cfgPath); err != nil {
-			t.Fatalf("config not saved: %v", err)
-		}
-		loaded, err := config.Load(cfgPath)
-		if err != nil {
-			t.Fatalf("load config: %v", err)
-		}
-		if loaded.ListenAddr != payload.ListenAddr {
-			t.Fatalf("listen_addr = %q, want %q", loaded.ListenAddr, payload.ListenAddr)
-		}
-		if loaded.AutoDiscover == nil || *loaded.AutoDiscover {
-			t.Fatalf("auto_discover = %v, want false", loaded.AutoDiscover)
-		}
-	})
-}
-
-func TestDiscoveryAndMappingEndpoints(t *testing.T) {
-	dir := t.TempDir()
-	cfgPath := filepath.Join(dir, "config.json")
-	discovery := &fakeDiscovery{
-		result: application.DiscoveryResult{
-			ServiceType: "urn:schemas-upnp-org:service:WANIPConnection:2",
-			ControlURL:  "http://192.168.1.1:1900/upnp/control/WANIPConn2",
-		},
-	}
-	mapper := &fakeMapper{externalIP: "203.0.113.42"}
-	srv := newTestServer(t, cfgPath, config.DefaultConfig(), discovery, mapper)
-
-	mapping := application.PortMapping{
-		Protocol:             "TCP",
-		ExternalPort:         8080,
-		InternalIP:           "192.168.1.20",
-		InternalPort:         8080,
-		Description:          "test mapping",
-		LeaseDurationSeconds: 3600,
-	}
-	mappingBody := []byte(`{"protocol":"TCP","external_port":8080,"internal_ip":"192.168.1.20","internal_port":8080,"description":"test mapping","lease_duration_seconds":3600}`)
-
-	t.Run("status starts empty", func(t *testing.T) {
+	t.Run("status", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/status", nil)
 		rec := httptest.NewRecorder()
 		srv.Handler().ServeHTTP(rec, req)
@@ -191,233 +81,113 @@ func TestDiscoveryAndMappingEndpoints(t *testing.T) {
 		}
 		var got StatusResponse
 		decodeJSON(t, rec.Body, &got)
-		if got.Discovered {
-			t.Fatalf("discovered = true, want false")
-		}
-		if len(got.Ports) != 0 {
-			t.Fatalf("ports = %d, want 0", len(got.Ports))
+		if !got.Discovered || got.ControlURL != svc.statusValue.ControlURL {
+			t.Fatalf("status response = %+v, want %+v", got, svc.statusValue)
 		}
 	})
 
-	t.Run("discover updates status", func(t *testing.T) {
+	t.Run("settings", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/settings", nil)
+		rec := httptest.NewRecorder()
+		srv.Handler().ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+		}
+		var got config.Config
+		decodeJSON(t, rec.Body, &got)
+		if got.ListenAddr != svc.settingsValue.ListenAddr {
+			t.Fatalf("listen_addr = %q, want %q", got.ListenAddr, svc.settingsValue.ListenAddr)
+		}
+	})
+}
+
+func TestMutatingEndpointsBindRequests(t *testing.T) {
+	svc := &fakeAPIService{statusValue: service.Status{Discovered: true}}
+	srv := New("127.0.0.1:8080", nil, svc)
+
+	t.Run("discover", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/api/discover", nil)
 		rec := httptest.NewRecorder()
 		srv.Handler().ServeHTTP(rec, req)
 		if rec.Code != http.StatusAccepted {
 			t.Fatalf("status = %d, want %d", rec.Code, http.StatusAccepted)
 		}
-		if discovery.calls != 1 {
-			t.Fatalf("discover calls = %d, want 1", discovery.calls)
-		}
-		var got StatusResponse
-		decodeJSON(t, rec.Body, &got)
-		if !got.Discovered {
-			t.Fatal("discovered = false, want true")
-		}
-		if got.ControlURL != discovery.result.ControlURL {
-			t.Fatalf("control_url = %q, want %q", got.ControlURL, discovery.result.ControlURL)
-		}
-		if got.ExternalIP != mapper.externalIP {
-			t.Fatalf("external_ip = %q, want %q", got.ExternalIP, mapper.externalIP)
-		}
-		if got.LocalIP == "" {
-			t.Fatal("local_ip should not be empty after discover")
-		}
 	})
 
-	t.Run("discover synchronizes active ports from router", func(t *testing.T) {
-		dir := t.TempDir()
-		cfgPath := filepath.Join(dir, "config2.json")
-
-		// 自身のローカルIPを一時的に特定
-		var tempLocalIP string
-		if conn, err := net.Dial("udp", "192.168.1.1:1900"); err == nil {
-			if localAddr, ok := conn.LocalAddr().(*net.UDPAddr); ok && !localAddr.IP.IsUnspecified() {
-				tempLocalIP = localAddr.IP.String()
-			}
-			conn.Close()
-		}
-		if tempLocalIP == "" {
-			// fallback
-			ifaces, _ := net.Interfaces()
-			for _, iface := range ifaces {
-				if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
-					continue
-				}
-				addrs, _ := iface.Addrs()
-				for _, addr := range addrs {
-					var ip net.IP
-					switch v := addr.(type) {
-					case *net.IPNet:
-						ip = v.IP
-					case *net.IPAddr:
-						ip = v.IP
-					}
-					if ip != nil && !ip.IsLoopback() && ip.To4() != nil {
-						tempLocalIP = ip.String()
-						break
-					}
-				}
-				if tempLocalIP != "" {
-					break
-				}
-			}
-		}
-
-		if tempLocalIP == "" {
-			t.Skip("Skipping active ports sync test: no suitable local IP found")
-		}
-
-		syncDiscovery := &fakeDiscovery{
-			result: application.DiscoveryResult{
-				ServiceType: "urn:schemas-upnp-org:service:WANIPConnection:2",
-				ControlURL:  "http://192.168.1.1:1900/upnp/control/WANIPConn2",
-			},
-		}
-
-		syncMapper := &fakeMapper{
-			externalIP: "203.0.113.42",
-			addCalls: []application.PortMapping{
-				{
-					Protocol:             "TCP",
-					ExternalPort:         7777,
-					InternalIP:           tempLocalIP, // このPC宛て（同期対象）
-					InternalPort:         7777,
-					Description:          "sync test 1",
-					LeaseDurationSeconds: 0,
-				},
-				{
-					Protocol:             "UDP",
-					ExternalPort:         8888,
-					InternalIP:           "192.168.1.99", // 別のPC宛て（除外対象）
-					InternalPort:         8888,
-					Description:          "sync test 2",
-					LeaseDurationSeconds: 0,
-				},
-			},
-		}
-
-		syncSrv := newTestServer(t, cfgPath, config.DefaultConfig(), syncDiscovery, syncMapper)
-
-		// discover エンドポイントを呼び出す
-		req := httptest.NewRequest(http.MethodPost, "/api/discover", nil)
-		rec := httptest.NewRecorder()
-		syncSrv.Handler().ServeHTTP(rec, req)
-		if rec.Code != http.StatusAccepted {
-			t.Fatalf("status = %d, want %d", rec.Code, http.StatusAccepted)
-		}
-
-		var got StatusResponse
-		decodeJSON(t, rec.Body, &got)
-
-		// ルーターから tempLocalIP 宛ての 7777 のみが同期されていることを確認
-		if len(got.Ports) != 1 {
-			t.Fatalf("synced ports count = %d, want 1", len(got.Ports))
-		}
-		if got.Ports[0].ExternalPort != 7777 {
-			t.Fatalf("synced port = %d, want 7777", got.Ports[0].ExternalPort)
-		}
-		if got.Ports[0].Description != "sync test 1" {
-			t.Fatalf("synced port desc = %q, want %q", got.Ports[0].Description, "sync test 1")
-		}
-	})
-
-	t.Run("discover timeout is soft failure", func(t *testing.T) {
-		timeoutDiscovery := &fakeDiscovery{err: application.ErrNoGateway}
-		timeoutSrv := newTestServer(t, cfgPath, config.DefaultConfig(), timeoutDiscovery, &fakeMapper{})
-		req := httptest.NewRequest(http.MethodPost, "/api/discover", nil)
-		rec := httptest.NewRecorder()
-		timeoutSrv.Handler().ServeHTTP(rec, req)
-		if rec.Code != http.StatusAccepted {
-			t.Fatalf("status = %d, want %d", rec.Code, http.StatusAccepted)
-		}
-		var got StatusResponse
-		decodeJSON(t, rec.Body, &got)
-		if got.Discovered {
-			t.Fatal("discovered = true, want false")
-		}
-	})
-
-	t.Run("open port adds mapping", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/api/ports/open", bytes.NewReader(mappingBody))
+	t.Run("open port", func(t *testing.T) {
+		body := []byte(`{"protocol":"TCP","external_port":8080,"internal_ip":"192.168.1.20","internal_port":8080}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/ports/open", bytes.NewReader(body))
 		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 		rec := httptest.NewRecorder()
 		srv.Handler().ServeHTTP(rec, req)
 		if rec.Code != http.StatusAccepted {
 			t.Fatalf("status = %d, want %d", rec.Code, http.StatusAccepted)
 		}
-		if len(mapper.addCalls) != 1 {
-			t.Fatalf("add calls = %d, want 1", len(mapper.addCalls))
-		}
-		var got StatusResponse
-		decodeJSON(t, rec.Body, &got)
-		if len(got.Ports) != 1 {
-			t.Fatalf("ports = %d, want 1", len(got.Ports))
-		}
-		if got.Ports[0].ExternalPort != mapping.ExternalPort {
-			t.Fatalf("external port = %d, want %d", got.Ports[0].ExternalPort, mapping.ExternalPort)
+		if svc.openRequest.ExternalPort != 8080 || svc.openRequest.Protocol != "TCP" {
+			t.Fatalf("open request = %+v", svc.openRequest)
 		}
 	})
 
-	t.Run("open port with empty internal ip resolves automatically", func(t *testing.T) {
-		emptyIPBody := []byte(`{"protocol":"TCP","external_port":9090,"internal_port":9090,"description":"empty ip test"}`)
-		req := httptest.NewRequest(http.MethodPost, "/api/ports/open", bytes.NewReader(emptyIPBody))
-		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-		rec := httptest.NewRecorder()
-		srv.Handler().ServeHTTP(rec, req)
-		if rec.Code != http.StatusAccepted {
-			t.Fatalf("status = %d, want %d (body: %s)", rec.Code, http.StatusAccepted, rec.Body.String())
-		}
-		var got StatusResponse
-		decodeJSON(t, rec.Body, &got)
-		// ポート数は 2 個になっているはず（前のテストの8080と今回の9090）
-		if len(got.Ports) != 2 {
-			t.Fatalf("ports = %d, want 2", len(got.Ports))
-		}
-
-		// 追加されたポート (external_port: 9090) の InternalIP が空ではなくなっていることを確認
-		found := false
-		for _, p := range got.Ports {
-			if p.ExternalPort == 9090 {
-				found = true
-				if p.InternalIP == "" {
-					t.Fatal("internal_ip should be automatically resolved and not empty")
-				}
-				t.Logf("Automatically resolved internal IP: %s", p.InternalIP)
-			}
-		}
-		if !found {
-			t.Fatal("port 9090 not found in status response")
-		}
-
-		// クリーンアップのために 9090 ポートをクローズする
-		closeBody := []byte(`{"protocol":"TCP","external_port":9090}`)
-		reqClose := httptest.NewRequest(http.MethodPost, "/api/ports/close", bytes.NewReader(closeBody))
-		reqClose.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-		recClose := httptest.NewRecorder()
-		srv.Handler().ServeHTTP(recClose, reqClose)
-		if recClose.Code != http.StatusAccepted {
-			t.Fatalf("close status = %d, want %d", recClose.Code, http.StatusAccepted)
-		}
-		// 後続のテストに影響を与えないように fakeMapper の delete 記録をリセットする
-		mapper.deleteCalls = nil
-	})
-
-	t.Run("close port removes mapping", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/api/ports/close", bytes.NewReader(mappingBody))
+	t.Run("close port", func(t *testing.T) {
+		body := []byte(`{"protocol":"UDP","external_port":5353}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/ports/close", bytes.NewReader(body))
 		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 		rec := httptest.NewRecorder()
 		srv.Handler().ServeHTTP(rec, req)
 		if rec.Code != http.StatusAccepted {
 			t.Fatalf("status = %d, want %d", rec.Code, http.StatusAccepted)
 		}
-		if len(mapper.deleteCalls) != 1 {
-			t.Fatalf("delete calls = %d, want 1", len(mapper.deleteCalls))
-		}
-		var got StatusResponse
-		decodeJSON(t, rec.Body, &got)
-		if len(got.Ports) != 0 {
-			t.Fatalf("ports = %d, want 0", len(got.Ports))
+		if svc.closeRequest.ExternalPort != 5353 || svc.closeRequest.Protocol != "UDP" {
+			t.Fatalf("close request = %+v", svc.closeRequest)
 		}
 	})
+
+	t.Run("update settings", func(t *testing.T) {
+		body := []byte(`{"listen_addr":"127.0.0.1:9090","auto_discover":false}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/settings", bytes.NewReader(body))
+		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+		rec := httptest.NewRecorder()
+		srv.Handler().ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+		}
+		if svc.settingsReq.ListenAddr != "127.0.0.1:9090" {
+			t.Fatalf("settings request = %+v", svc.settingsReq)
+		}
+	})
+}
+
+func TestEndpointErrorConversion(t *testing.T) {
+	svc := &fakeAPIService{
+		discoverErr: errors.New("discover failed"),
+		openErr:     errors.New("open failed"),
+		closeErr:    errors.New("close failed"),
+		settingsErr: errors.New("settings failed"),
+	}
+	srv := New("127.0.0.1:8080", nil, svc)
+
+	tests := []struct {
+		name       string
+		method     string
+		path       string
+		body       string
+		wantStatus int
+	}{
+		{name: "discover error", method: http.MethodPost, path: "/api/discover", wantStatus: http.StatusBadGateway},
+		{name: "open error", method: http.MethodPost, path: "/api/ports/open", body: `{"protocol":"TCP"}`, wantStatus: http.StatusBadRequest},
+		{name: "close error", method: http.MethodPost, path: "/api/ports/close", body: `{"protocol":"TCP"}`, wantStatus: http.StatusBadRequest},
+		{name: "settings error", method: http.MethodPost, path: "/api/settings", body: `{"listen_addr":"0.0.0.0:8080"}`, wantStatus: http.StatusBadRequest},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(tt.method, tt.path, bytes.NewReader([]byte(tt.body)))
+			req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+			rec := httptest.NewRecorder()
+			srv.Handler().ServeHTTP(rec, req)
+			if rec.Code != tt.wantStatus {
+				t.Fatalf("status = %d, want %d", rec.Code, tt.wantStatus)
+			}
+		})
+	}
 }

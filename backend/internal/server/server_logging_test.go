@@ -13,7 +13,7 @@ func TestServerLogsRequests(t *testing.T) {
 	var buf bytes.Buffer
 	logger := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
-	s := New("127.0.0.1:8080", logger)
+	s := New("127.0.0.1:8080", logger, nil)
 	req := httptest.NewRequest(http.MethodGet, "/api/health", nil)
 	rec := httptest.NewRecorder()
 

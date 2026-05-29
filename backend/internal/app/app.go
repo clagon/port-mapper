@@ -9,6 +9,7 @@ import (
 
 	"github.com/clagon/port-mapper/backend/internal/config"
 	"github.com/clagon/port-mapper/backend/internal/server"
+	"github.com/clagon/port-mapper/backend/internal/service"
 	"github.com/clagon/port-mapper/backend/internal/upnp"
 )
 
@@ -32,6 +33,7 @@ type AppOptions struct {
 type App struct {
 	cfg           config.Config
 	server        *server.Server
+	service       *service.Service
 	configPath    string
 	openBrowser   bool
 	browserOpener BrowserOpener
@@ -45,7 +47,8 @@ func New(opts AppOptions) (*App, error) {
 		configPath = config.DefaultPath()
 	}
 
-	cfg, err := config.Load(configPath)
+	settingsStore := config.FileStore{Path: configPath}
+	cfg, err := settingsStore.Load()
 	if err != nil {
 		return nil, err
 	}
@@ -65,16 +68,19 @@ func New(opts AppOptions) (*App, error) {
 		logger = slog.Default()
 	}
 
+	svc := service.New(service.Options{
+		ConfigPath:        configPath,
+		Config:            cfg,
+		Logger:            logger,
+		SettingsStore:     settingsStore,
+		Discovery:         upnp.NewDiscoveryClient(),
+		PortMapperFactory: upnp.NewSOAPPortMapper,
+	})
+
 	return &App{
-		cfg: cfg,
-		server: server.New(
-			cfg.ListenAddr,
-			logger,
-			server.WithConfigPath(configPath),
-			server.WithConfig(cfg),
-			server.WithDiscoveryClient(upnp.NewDiscoveryClient()),
-			server.WithPortMapperFactory(upnp.NewSOAPPortMapper),
-		),
+		cfg:           cfg,
+		server:        server.New(cfg.ListenAddr, logger, svc),
+		service:       svc,
 		configPath:    configPath,
 		openBrowser:   opts.OpenBrowser,
 		browserOpener: opts.BrowserOpener,
@@ -145,7 +151,7 @@ func (a *App) Run() error {
 			if a.logger != nil {
 				a.logger.Info("auto discovering router")
 			}
-			if err := a.server.Discover(); err != nil && a.logger != nil {
+			if _, err := a.service.Discover(); err != nil && a.logger != nil {
 				a.logger.Warn("auto discovery failed", "error", err)
 			}
 		}()

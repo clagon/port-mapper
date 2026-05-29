@@ -8,6 +8,21 @@ import (
 	"path/filepath"
 )
 
+// FileStore persists config values to a JSON file.
+type FileStore struct {
+	Path string
+}
+
+// Load reads config values from the store path.
+func (s FileStore) Load() (Config, error) {
+	return Load(s.Path)
+}
+
+// Save writes config values to the store path.
+func (s FileStore) Save(cfg Config) error {
+	return Save(s.Path, cfg)
+}
+
 // Load reads a config file from path. Missing files return defaults.
 func Load(path string) (Config, error) {
 	if path == "" {

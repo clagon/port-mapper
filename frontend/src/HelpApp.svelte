@@ -22,7 +22,7 @@
     <div class="flex items-center justify-between px-6 py-4 max-w-7xl mx-auto w-full">
       <div class="flex items-center gap-3">
         <span class="material-symbols-outlined text-primary text-2xl" style="font-variation-settings: 'FILL' 1;">router</span>
-        <span class="font-headline-md text-xl font-bold tracking-tight text-primary">PortMapper</span>
+        <span class="font-headline-md text-xl font-bold tracking-tight text-primary">Porto</span>
         <span class="h-4 w-[1px] bg-surface-variant"></span>
         <span class="font-label-sm text-xs text-text-muted uppercase tracking-wider">ヘルプ & ドキュメント</span>
       </div>
@@ -90,7 +90,7 @@
   <!-- Footer -->
   <footer class="bg-surface-card border-t border-surface-variant/40 py-6 mt-auto">
     <div class="max-w-7xl mx-auto px-6 flex justify-between items-center text-[11px] text-text-muted">
-      <span>&copy; 2026 PortMapper. All rights reserved.</span>
+      <span>&copy; 2024-2026 Porto. All rights reserved.</span>
       <span>Local-only & Private</span>
     </div>
   </footer>

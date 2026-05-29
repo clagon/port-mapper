@@ -26,7 +26,7 @@ func TestStatic(t *testing.T) {
 		{name: "spa fallback serves index", path: "/dashboard", wantStatus: http.StatusOK, wantString: "port-mapper"},
 	}
 
-	srv := New("127.0.0.1:8080", nil)
+	srv := New("127.0.0.1:8080", nil, nil)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, tt.path, nil)
