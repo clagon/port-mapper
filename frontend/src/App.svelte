@@ -62,7 +62,7 @@
       internal_port: portData.portNumber,
       internal_ip: '',
       description: portData.appName,
-      lease_duration_seconds: 0
+      lease_duration_seconds: portData.leaseDurationSeconds ?? 0
     };
     await runAction(() => api.openPort(mapping), 'ポートを開放しています...');
     isAddModalOpen = false;
@@ -96,7 +96,7 @@
           internal_port: portData.portNumber,
           internal_ip: '',
           description: portData.appName,
-          lease_duration_seconds: 0
+          lease_duration_seconds: portData.leaseDurationSeconds ?? 0
         };
         await api.openPort(mapping);
       }, 'ポートの設定を変更しています...');
