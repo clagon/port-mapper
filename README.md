@@ -100,4 +100,19 @@ The Go backend exposes a minimal HTTP API on localhost.
 - **URL**: `GET /api/health`
 - **Response**: `{"ok":true}`
 
+---
+
+## ✅ Quality Checks
+
+Before opening a PR or pushing a UI change, run:
+
+```bash
+cd backend
+go test ./...
+
+npm --prefix frontend run lint
+npm --prefix frontend run build
+```
+
+GitHub Actions runs the same backend test, frontend lint, and frontend build checks on pushes and pull requests.
 

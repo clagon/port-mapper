@@ -113,7 +113,7 @@
 
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
       {#if portCount > 0}
-        {#each status.ports as port, index}
+        {#each status.ports as port, index (`${port.protocol}-${port.external_port}-${index}`)}
           <div class="bg-surface-card rounded-xl p-card-padding shadow-ambient-card flex flex-col gap-4 border border-transparent hover:border-surface-variant transition-colors">
             <div class="flex justify-between items-start">
               <div class="flex items-center gap-3">

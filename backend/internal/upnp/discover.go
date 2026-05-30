@@ -22,7 +22,6 @@ func Discover() (DiscoveryResult, error) {
 		return DiscoveryResult{}, err
 	}
 
-	var lastErr error
 	sawOnlyWFA := false
 	for _, iface := range ifaces {
 		result, err := discoverFromInterface(iface)
@@ -32,7 +31,6 @@ func Discover() (DiscoveryResult, error) {
 		if errors.Is(err, errOnlyWFADevices) {
 			sawOnlyWFA = true
 		}
-		lastErr = err
 	}
 
 	ipv6Ifaces, err := discoverIPv6Interfaces()
@@ -45,31 +43,22 @@ func Discover() (DiscoveryResult, error) {
 			if errors.Is(err, errOnlyWFADevices) {
 				sawOnlyWFA = true
 			}
-			lastErr = err
 		}
-	} else {
-		lastErr = err
 	}
 
 	result, err := probeGatewayControlURLs(ifaces)
 	if err == nil {
 		return result, nil
 	}
-	lastErr = err
 
 	result, err = probeGatewayDescriptions(ifaces)
 	if err == nil {
 		return result, nil
 	}
-	lastErr = err
-
 	if sawOnlyWFA {
-		return DiscoveryResult{}, fmt.Errorf("%w: %v; fallback probes failed: %v", ErrNoGateway, errOnlyWFADevices, lastErr)
+		return DiscoveryResult{}, fmt.Errorf("%w: %v; fallback probes failed: %v", ErrNoGateway, errOnlyWFADevices, err)
 	}
-	if lastErr != nil {
-		return DiscoveryResult{}, fmt.Errorf("%w: %v", ErrNoGateway, lastErr)
-	}
-	return DiscoveryResult{}, ErrNoGateway
+	return DiscoveryResult{}, fmt.Errorf("%w: %v", ErrNoGateway, err)
 }
 
 func discoverFromInterface(iface discoverInterface) (DiscoveryResult, error) {
@@ -101,7 +90,6 @@ func discoverFromSSDPResponses(responses []ssdpResponse, noMatchMessage string) 
 		if err == nil {
 			return result, nil
 		}
-		lastErr = err
 	}
 
 	if lastErr != nil {

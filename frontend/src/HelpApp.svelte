@@ -38,7 +38,7 @@
     <aside class="w-full md:w-64 flex-shrink-0 flex flex-col gap-4">
       <div class="bg-surface-card rounded-2xl p-4 shadow-ambient-low border border-surface-variant/30 flex flex-col gap-2">
         <h2 class="font-label-sm text-xs text-text-muted uppercase tracking-wider px-3 mb-2">ドキュメント</h2>
-        {#each docs as doc}
+        {#each docs as doc (doc.id)}
           <button
             class="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 text-left font-body-md {activeDocId === doc.id ? 'bg-primary-container text-on-primary-container font-semibold shadow-sm' : 'text-secondary hover:text-text-main hover:bg-surface-container-low'}"
             on:click={() => activeDocId = doc.id}

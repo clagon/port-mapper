@@ -10,8 +10,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/clagon/port-mapper/backend/internal/domain"
 	"github.com/clagon/port-mapper/backend/internal/config"
+	"github.com/clagon/port-mapper/backend/internal/domain"
 )
 
 // SettingsStore は、ユーザーが変更可能な環境設定情報を永続化（保存）するためのインターフェースです。
@@ -22,11 +22,11 @@ type SettingsStore interface {
 
 // Status は、現在アクティブなゲートウェイ（ルーター）探索結果と、登録されているポートマッピング一覧などのアプリケーション状態を表す構造体です。
 type Status struct {
-	Discovered  bool                      `json:"discovered"`
-	ServiceType string                    `json:"service_type,omitempty"`
-	ControlURL  string                    `json:"control_url,omitempty"`
-	ExternalIP  string                    `json:"external_ip,omitempty"`
-	LocalIP     string                    `json:"local_ip,omitempty"`
+	Discovered  bool                 `json:"discovered"`
+	ServiceType string               `json:"service_type,omitempty"`
+	ControlURL  string               `json:"control_url,omitempty"`
+	ExternalIP  string               `json:"external_ip,omitempty"`
+	LocalIP     string               `json:"local_ip,omitempty"`
 	Ports       []domain.PortMapping `json:"ports"`
 }
 
@@ -168,7 +168,7 @@ func (s *Service) Discover() (Status, error) {
 			if localAddr, ok := conn.LocalAddr().(*net.UDPAddr); ok && !localAddr.IP.IsUnspecified() {
 				localIP = localAddr.IP.String()
 			}
-			conn.Close()
+			_ = conn.Close()
 		}
 	}
 	if localIP == "" {
@@ -357,7 +357,7 @@ func (s *Service) resolveInternalIP(providedIP string) (string, error) {
 		// 失敗時はフォールバックとして最初の非ループバックIPv4を探す
 		return s.fallbackLocalIP()
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	localAddr, ok := conn.LocalAddr().(*net.UDPAddr)
 	if !ok || localAddr.IP.IsUnspecified() {

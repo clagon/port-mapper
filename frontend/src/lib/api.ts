@@ -21,7 +21,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
           errMsg = rawText;
         }
       }
-    } catch {}
+    } catch {
+      errMsg = `${path} failed: ${res.status}`;
+    }
     throw new Error(errMsg);
   }
   return (await res.json()) as T;

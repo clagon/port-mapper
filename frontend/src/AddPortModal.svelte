@@ -126,7 +126,7 @@
                 bind:value={leaseUnit}
                 aria-label="時間の単位"
               >
-                {#each Object.entries(unitLabels) as [value, label]}
+                {#each Object.entries(unitLabels) as [value, label] (value)}
                   <option {value}>{label}</option>
                 {/each}
               </select>
