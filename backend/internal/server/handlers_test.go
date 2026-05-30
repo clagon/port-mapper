@@ -8,8 +8,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/clagon/port-mapper/backend/internal/domain"
 	"github.com/clagon/port-mapper/backend/internal/config"
+	"github.com/clagon/port-mapper/backend/internal/domain"
 	"github.com/clagon/port-mapper/backend/internal/service"
 	"github.com/labstack/echo/v4"
 )
@@ -58,103 +58,134 @@ func TestHealthAndReadEndpoints(t *testing.T) {
 	}
 	srv := New("127.0.0.1:8080", nil, svc)
 
-	t.Run("health", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/api/health", nil)
-		rec := httptest.NewRecorder()
-		srv.Handler().ServeHTTP(rec, req)
-		if rec.Code != http.StatusOK {
-			t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
-		}
-		var got HealthResponse
-		decodeJSON(t, rec.Body, &got)
-		if !got.Ok {
-			t.Fatalf("health response = %+v, want ok=true", got)
-		}
-	})
+	tests := []struct {
+		name   string
+		path   string
+		assert func(*testing.T, *httptest.ResponseRecorder)
+	}{
+		{
+			name: "ヘルスチェックを返す",
+			path: "/api/health",
+			assert: func(t *testing.T, rec *httptest.ResponseRecorder) {
+				if rec.Code != http.StatusOK {
+					t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+				}
+				var got HealthResponse
+				decodeJSON(t, rec.Body, &got)
+				if !got.Ok {
+					t.Fatalf("health response = %+v, want ok=true", got)
+				}
+			},
+		},
+		{
+			name: "ステータスを返す",
+			path: "/api/status",
+			assert: func(t *testing.T, rec *httptest.ResponseRecorder) {
+				if rec.Code != http.StatusOK {
+					t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+				}
+				var got StatusResponse
+				decodeJSON(t, rec.Body, &got)
+				if !got.Discovered || got.ControlURL != svc.statusValue.ControlURL {
+					t.Fatalf("status response = %+v, want %+v", got, svc.statusValue)
+				}
+			},
+		},
+		{
+			name: "設定を返す",
+			path: "/api/settings",
+			assert: func(t *testing.T, rec *httptest.ResponseRecorder) {
+				if rec.Code != http.StatusOK {
+					t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+				}
+				var got config.Config
+				decodeJSON(t, rec.Body, &got)
+				if got.ListenAddr != svc.settingsValue.ListenAddr {
+					t.Fatalf("listen_addr = %q, want %q", got.ListenAddr, svc.settingsValue.ListenAddr)
+				}
+			},
+		},
+	}
 
-	t.Run("status", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/api/status", nil)
-		rec := httptest.NewRecorder()
-		srv.Handler().ServeHTTP(rec, req)
-		if rec.Code != http.StatusOK {
-			t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
-		}
-		var got StatusResponse
-		decodeJSON(t, rec.Body, &got)
-		if !got.Discovered || got.ControlURL != svc.statusValue.ControlURL {
-			t.Fatalf("status response = %+v, want %+v", got, svc.statusValue)
-		}
-	})
-
-	t.Run("settings", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/api/settings", nil)
-		rec := httptest.NewRecorder()
-		srv.Handler().ServeHTTP(rec, req)
-		if rec.Code != http.StatusOK {
-			t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
-		}
-		var got config.Config
-		decodeJSON(t, rec.Body, &got)
-		if got.ListenAddr != svc.settingsValue.ListenAddr {
-			t.Fatalf("listen_addr = %q, want %q", got.ListenAddr, svc.settingsValue.ListenAddr)
-		}
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, tt.path, nil)
+			rec := httptest.NewRecorder()
+			srv.Handler().ServeHTTP(rec, req)
+			tt.assert(t, rec)
+		})
+	}
 }
 
 func TestMutatingEndpointsBindRequests(t *testing.T) {
-	svc := &fakeAPIService{statusValue: service.Status{Discovered: true}}
-	srv := New("127.0.0.1:8080", nil, svc)
+	tests := []struct {
+		name   string
+		path   string
+		body   []byte
+		assert func(*testing.T, *fakeAPIService, *httptest.ResponseRecorder)
+	}{
+		{
+			name: "探索を受け付ける",
+			path: "/api/discover",
+			assert: func(t *testing.T, svc *fakeAPIService, rec *httptest.ResponseRecorder) {
+				if rec.Code != http.StatusAccepted {
+					t.Fatalf("status = %d, want %d", rec.Code, http.StatusAccepted)
+				}
+			},
+		},
+		{
+			name: "ポート開放リクエストを束縛する",
+			path: "/api/ports/open",
+			body: []byte(`{"protocol":"TCP","external_port":8080,"internal_ip":"192.168.1.20","internal_port":8080}`),
+			assert: func(t *testing.T, svc *fakeAPIService, rec *httptest.ResponseRecorder) {
+				if rec.Code != http.StatusAccepted {
+					t.Fatalf("status = %d, want %d", rec.Code, http.StatusAccepted)
+				}
+				if svc.openRequest.ExternalPort != 8080 || svc.openRequest.Protocol != "TCP" {
+					t.Fatalf("open request = %+v", svc.openRequest)
+				}
+			},
+		},
+		{
+			name: "ポート閉鎖リクエストを束縛する",
+			path: "/api/ports/close",
+			body: []byte(`{"protocol":"UDP","external_port":5353}`),
+			assert: func(t *testing.T, svc *fakeAPIService, rec *httptest.ResponseRecorder) {
+				if rec.Code != http.StatusAccepted {
+					t.Fatalf("status = %d, want %d", rec.Code, http.StatusAccepted)
+				}
+				if svc.closeRequest.ExternalPort != 5353 || svc.closeRequest.Protocol != "UDP" {
+					t.Fatalf("close request = %+v", svc.closeRequest)
+				}
+			},
+		},
+		{
+			name: "設定更新リクエストを束縛する",
+			path: "/api/settings",
+			body: []byte(`{"listen_addr":"127.0.0.1:9090","auto_discover":false}`),
+			assert: func(t *testing.T, svc *fakeAPIService, rec *httptest.ResponseRecorder) {
+				if rec.Code != http.StatusOK {
+					t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+				}
+				if svc.settingsReq.ListenAddr != "127.0.0.1:9090" {
+					t.Fatalf("settings request = %+v", svc.settingsReq)
+				}
+			},
+		},
+	}
 
-	t.Run("discover", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/api/discover", nil)
-		rec := httptest.NewRecorder()
-		srv.Handler().ServeHTTP(rec, req)
-		if rec.Code != http.StatusAccepted {
-			t.Fatalf("status = %d, want %d", rec.Code, http.StatusAccepted)
-		}
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := &fakeAPIService{statusValue: service.Status{Discovered: true}}
+			srv := New("127.0.0.1:8080", nil, svc)
 
-	t.Run("open port", func(t *testing.T) {
-		body := []byte(`{"protocol":"TCP","external_port":8080,"internal_ip":"192.168.1.20","internal_port":8080}`)
-		req := httptest.NewRequest(http.MethodPost, "/api/ports/open", bytes.NewReader(body))
-		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-		rec := httptest.NewRecorder()
-		srv.Handler().ServeHTTP(rec, req)
-		if rec.Code != http.StatusAccepted {
-			t.Fatalf("status = %d, want %d", rec.Code, http.StatusAccepted)
-		}
-		if svc.openRequest.ExternalPort != 8080 || svc.openRequest.Protocol != "TCP" {
-			t.Fatalf("open request = %+v", svc.openRequest)
-		}
-	})
-
-	t.Run("close port", func(t *testing.T) {
-		body := []byte(`{"protocol":"UDP","external_port":5353}`)
-		req := httptest.NewRequest(http.MethodPost, "/api/ports/close", bytes.NewReader(body))
-		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-		rec := httptest.NewRecorder()
-		srv.Handler().ServeHTTP(rec, req)
-		if rec.Code != http.StatusAccepted {
-			t.Fatalf("status = %d, want %d", rec.Code, http.StatusAccepted)
-		}
-		if svc.closeRequest.ExternalPort != 5353 || svc.closeRequest.Protocol != "UDP" {
-			t.Fatalf("close request = %+v", svc.closeRequest)
-		}
-	})
-
-	t.Run("update settings", func(t *testing.T) {
-		body := []byte(`{"listen_addr":"127.0.0.1:9090","auto_discover":false}`)
-		req := httptest.NewRequest(http.MethodPost, "/api/settings", bytes.NewReader(body))
-		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-		rec := httptest.NewRecorder()
-		srv.Handler().ServeHTTP(rec, req)
-		if rec.Code != http.StatusOK {
-			t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
-		}
-		if svc.settingsReq.ListenAddr != "127.0.0.1:9090" {
-			t.Fatalf("settings request = %+v", svc.settingsReq)
-		}
-	})
+			req := httptest.NewRequest(http.MethodPost, tt.path, bytes.NewReader(tt.body))
+			req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+			rec := httptest.NewRecorder()
+			srv.Handler().ServeHTTP(rec, req)
+			tt.assert(t, svc, rec)
+		})
+	}
 }
 
 func TestEndpointErrorConversion(t *testing.T) {
@@ -173,10 +204,10 @@ func TestEndpointErrorConversion(t *testing.T) {
 		body       string
 		wantStatus int
 	}{
-		{name: "discover error", method: http.MethodPost, path: "/api/discover", wantStatus: http.StatusBadGateway},
-		{name: "open error", method: http.MethodPost, path: "/api/ports/open", body: `{"protocol":"TCP"}`, wantStatus: http.StatusBadRequest},
-		{name: "close error", method: http.MethodPost, path: "/api/ports/close", body: `{"protocol":"TCP"}`, wantStatus: http.StatusBadRequest},
-		{name: "settings error", method: http.MethodPost, path: "/api/settings", body: `{"listen_addr":"0.0.0.0:8080"}`, wantStatus: http.StatusBadRequest},
+		{name: "探索エラー", method: http.MethodPost, path: "/api/discover", wantStatus: http.StatusBadGateway},
+		{name: "ポート開放エラー", method: http.MethodPost, path: "/api/ports/open", body: `{"protocol":"TCP"}`, wantStatus: http.StatusBadRequest},
+		{name: "ポート閉鎖エラー", method: http.MethodPost, path: "/api/ports/close", body: `{"protocol":"TCP"}`, wantStatus: http.StatusBadRequest},
+		{name: "設定エラー", method: http.MethodPost, path: "/api/settings", body: `{"listen_addr":"0.0.0.0:8080"}`, wantStatus: http.StatusBadRequest},
 	}
 
 	for _, tt := range tests {
