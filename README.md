@@ -1,11 +1,13 @@
-# Porto ── /ˈpɔːr.toʊ/ (ポルト)
+# Porto
+
+[English](README.md) | [日本語](README.ja.md)
 
 [![Go Version](https://img.shields.io/badge/Go-1.23%2B-00ADD8.svg?style=flat&logo=go)](https://go.dev)
 [![Node Version](https://img.shields.io/badge/Node-18%2B-339933.svg?style=flat&logo=node.js)](https://nodejs.org)
 
-**Porto** (pronounced: English `/ˈpɔːr.toʊ/` 📣, Portuguese `/ˈpɔɾ.tu/` 📣) is a premium, extremely simple, and secure local UPnP port-opening tool designed for Linux, macOS, and Windows. 
+**Porto** (pronounced: `/ˈpɔːr.toʊ/` 📣) is a premium, extremely simple, and secure local UPnP port-opening tool designed for Linux, macOS, and Windows.
 
-Inspired by the historic Portuguese port city of Porto, where ships are guided and welcomed into safe harbors, Porto provides a beautiful and intuitive interface to temporarily open ports on your router, allowing you to invite friends to join your gaming servers (e.g., Minecraft) or share local web apps in seconds.
+It provides a beautiful and intuitive interface to temporarily open ports on your router, allowing you to invite friends to join your gaming servers (e.g., Minecraft) or share local web apps in seconds.
 
 > [!NOTE]
 > Porto acts as a friendly guardian of your local network: it helps you open ports only when needed, and close them as soon as you are done, keeping your computer safe from persistent external threats.
