@@ -13,7 +13,7 @@
   let error = '';
   let isErrorDetailsOpen = false;
   let form = {
-    listen_addr: '127.0.0.1:8080',
+    listen_addr: '127.0.0.1:61234',
     auto_discover: true,
   };
 

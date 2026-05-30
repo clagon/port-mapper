@@ -26,7 +26,7 @@ func TestNew(t *testing.T) {
 		{
 			name:     "default address",
 			opts:     AppOptions{},
-			wantAddr: "127.0.0.1:8080",
+			wantAddr: "127.0.0.1:61234",
 		},
 		{
 			name:     "custom address",
@@ -97,7 +97,7 @@ func TestStartOpensBrowserOnlyWhenEnabled(t *testing.T) {
 		wantLog     string
 	}{
 		{name: "disabled", openBrowser: false, wantCalls: 0},
-		{name: "enabled", openBrowser: true, wantCalls: 1, wantURL: "http://127.0.0.1:8080/", wantLog: "opening browser"},
+		{name: "enabled", openBrowser: true, wantCalls: 1, wantURL: "http://127.0.0.1:61234/", wantLog: "opening browser"},
 	}
 
 	for _, tt := range tests {

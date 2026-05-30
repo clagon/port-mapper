@@ -15,7 +15,7 @@ func TestWithDefaults(t *testing.T) {
 		{
 			name: "empty listen addr uses default",
 			in:   Config{},
-			want: "127.0.0.1:8080",
+			want: "127.0.0.1:61234",
 		},
 		{
 			name: "explicit listen addr is preserved",
