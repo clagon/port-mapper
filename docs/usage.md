@@ -41,6 +41,8 @@ On Windows, the config sits beside `port-mapper.exe` in the same folder.
 
 If `config.json` is missing, the app uses defaults.
 
+Changes to `listen_addr` and `auto_discover` are persisted to `config.json` and take effect the next time Porto starts.
+
 ### Example
 
 ```json
