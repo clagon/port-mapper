@@ -12,7 +12,7 @@ Requires Go 1.23 or newer.
 
 ```bash
 cd backend
-go run ./cmd
+go run ./cmd/porto
 ```
 
 You can also tweak startup behavior:

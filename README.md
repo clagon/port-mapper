@@ -53,32 +53,32 @@ Compile and run the Go backend:
 
 ```bash
 cd backend
-go run ./cmd
+go run ./cmd/porto
 ```
 
 Upon startup, Porto will:
 1. Automatically load `config.json` (or use safe defaults if missing).
-2. Start the local server on `127.0.0.1:8080`.
-3. Try to open the dashboard automatically in your default browser.
+2. Start the local server at `127.0.0.1:61234`.
+3. Attempt to automatically open the dashboard in your default browser.
 
-If your browser does not open automatically, visit:
-👉 **[http://127.0.0.1:8080](http://127.0.0.1:8080)**
+If it doesn't open automatically, navigate to:
+👉 **[http://127.0.0.1:61234](http://127.0.0.1:61234)**
 
 ---
 
-## ⚙️ Command-Line Options
+## ⚙️ CLI Options
 
-You can customize Porto's behavior using the following command-line flags:
+You can customize Porto's behavior with the following command-line flags:
 
 | Flag | Description | Default |
 | :--- | :--- | :--- |
-| `--listen-addr` | Specify the host and port for the local web UI | `127.0.0.1:8080` |
+| `--listen-addr` | Specify the host and port for the local web UI | `127.0.0.1:61234` |
 | `--config` | Point to a custom path for the `config.json` file | `config.json` beside the binary |
 | `--no-browser` | Prevent the app from opening the browser on startup | `false` (will open browser) |
 
 Example:
 ```bash
-go run ./cmd --listen-addr 127.0.0.1:9090 --no-browser
+go run ./cmd/porto --listen-addr 127.0.0.1:9090 --no-browser
 ```
 
 ---

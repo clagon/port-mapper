@@ -53,7 +53,7 @@ Go バックエンドをコンパイルして実行します:
 
 ```bash
 cd backend
-go run ./cmd
+go run ./cmd/porto
 ```
 
 起動時、Porto は以下の処理を行います:
@@ -78,7 +78,7 @@ go run ./cmd
 
 例:
 ```bash
-go run ./cmd --listen-addr 127.0.0.1:9090 --no-browser
+go run ./cmd/porto --listen-addr 127.0.0.1:9090 --no-browser
 ```
 
 ---
