@@ -50,7 +50,7 @@ func collectSSDPResponses(iface discoverInterface) ([]ssdpResponse, error) {
 	if err != nil {
 		return nil, fmt.Errorf("listen for SSDP: %w", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	packetConn := ipv4.NewPacketConn(conn)
 	if iface.Interface != nil {
@@ -115,7 +115,7 @@ func collectSSDPResponsesIPv6(iface discoverIPv6Interface) ([]ssdpResponse, erro
 	if err != nil {
 		return nil, fmt.Errorf("listen for IPv6 SSDP: %w", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	packetConn := ipv6.NewPacketConn(conn)
 	if iface.Interface != nil {

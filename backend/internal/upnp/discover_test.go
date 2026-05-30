@@ -152,7 +152,7 @@ func TestDiscoverFromLocation(t *testing.T) {
 		if err != nil {
 			return nil, err
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 		return io.ReadAll(resp.Body)
 	})
 	if err != nil {
