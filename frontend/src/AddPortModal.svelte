@@ -16,7 +16,7 @@
 
   $: isEdit = port !== null;
   $: leaseDurationSeconds =
-    leaseDurationValue === 0 ? 0 : leaseDurationValue * unitSeconds[leaseUnit];
+    !leaseDurationValue || leaseDurationValue <= 0 ? 0 : leaseDurationValue * unitSeconds[leaseUnit];
   $: isUnlimited = leaseDurationSeconds === 0;
   $: isExceeded = leaseDurationSeconds > 604800;
 
