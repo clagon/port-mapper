@@ -8,14 +8,37 @@
   let appName = '';
   let portNumber = '';
   let protocol = 'tcp';
+  let leaseDurationValue = 0;
+  let leaseUnit = 'hours';
+
+  const unitSeconds = { minutes: 60, hours: 3600, days: 86400 };
+  const unitLabels = { minutes: '分', hours: '時間', days: '日' };
 
   $: isEdit = port !== null;
+  $: leaseDurationSeconds =
+    leaseDurationValue === 0 ? 0 : leaseDurationValue * unitSeconds[leaseUnit];
+  $: isUnlimited = leaseDurationSeconds === 0;
 
   onMount(() => {
     if (port) {
       appName = port.description || '';
       portNumber = port.external_port ? port.external_port.toString() : '';
       protocol = port.protocol ? port.protocol.toLowerCase() : 'tcp';
+      // 既存のリース期間から値・単位を復元
+      const secs = port.lease_duration_seconds || 0;
+      if (secs === 0) {
+        leaseDurationValue = 0;
+        leaseUnit = 'hours';
+      } else if (secs % 86400 === 0) {
+        leaseDurationValue = secs / 86400;
+        leaseUnit = 'days';
+      } else if (secs % 3600 === 0) {
+        leaseDurationValue = secs / 3600;
+        leaseUnit = 'hours';
+      } else {
+        leaseDurationValue = Math.round(secs / 60);
+        leaseUnit = 'minutes';
+      }
     }
   });
 
@@ -23,7 +46,8 @@
     dispatch('submit', {
       appName,
       portNumber: parseInt(portNumber, 10),
-      protocol
+      protocol,
+      leaseDurationSeconds
     });
   }
 
@@ -76,6 +100,52 @@
             <input class="block w-full pl-12 pr-4 py-4 bg-transparent border-none rounded-xl font-body-md text-body-md text-on-surface focus:ring-0 placeholder:text-secondary-fixed-dim" id="portNumber" name="portNumber" bind:value={portNumber} placeholder="例: 25565" required type="number" min="1" max="65535"/>
           </div>
           <p class="font-label-sm text-label-sm text-text-muted px-1">通常、アプリの説明書や設定画面に記載されています。</p>
+        </div>
+
+        <div class="space-y-3">
+          <label class="block font-label-sm text-label-sm text-on-surface-variant" for="leaseDuration">有効期間</label>
+          <div class="flex gap-3">
+            <div class="relative input-glow rounded-xl transition-all duration-200 bg-[#F9F6F3] flex-1">
+              <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <span class="material-symbols-outlined text-secondary">timer</span>
+              </div>
+              <input
+                class="block w-full pl-12 pr-4 py-4 bg-transparent border-none rounded-xl font-body-md text-body-md text-on-surface focus:ring-0 placeholder:text-secondary-fixed-dim"
+                id="leaseDuration"
+                name="leaseDuration"
+                bind:value={leaseDurationValue}
+                type="number"
+                min="0"
+                placeholder="0"
+              />
+            </div>
+            <div class="relative">
+              <select
+                class="h-full px-4 pr-10 py-4 bg-[#F9F6F3] border-none rounded-xl font-body-md text-body-md text-on-surface focus:ring-0 appearance-none cursor-pointer"
+                bind:value={leaseUnit}
+                aria-label="時間の単位"
+              >
+                {#each Object.entries(unitLabels) as [value, label]}
+                  <option {value}>{label}</option>
+                {/each}
+              </select>
+              <div class="absolute inset-y-0 right-3 flex items-center pointer-events-none">
+                <span class="material-symbols-outlined text-secondary text-base">expand_more</span>
+              </div>
+            </div>
+          </div>
+          {#if isUnlimited}
+            <div class="flex items-start gap-2 px-3 py-2.5 bg-red-50 border border-red-200 rounded-xl">
+              <span class="material-symbols-outlined text-red-500 text-base mt-0.5" style="font-variation-settings: 'FILL' 1;">warning</span>
+              <p class="font-label-sm text-label-sm text-red-600">
+                <strong>0 は無期限解放を意味します。</strong>不要になったときは必ず手動で閉じてください。
+              </p>
+            </div>
+          {:else}
+            <p class="font-label-sm text-label-sm text-text-muted px-1">
+              {leaseDurationValue}{unitLabels[leaseUnit]}後に自動でポートが閉じられます。
+            </p>
+          {/if}
         </div>
 
         <div class="space-y-3 pt-2">
