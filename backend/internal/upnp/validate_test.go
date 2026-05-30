@@ -6,7 +6,7 @@ func TestValidatePortMapping(t *testing.T) {
 	tests := []struct {
 		name    string
 		in      PortMapping
-		wantErr bool
+		wantErr bool // ValidatePortMapping() error presence
 	}{
 		{
 			name: "valid tcp",

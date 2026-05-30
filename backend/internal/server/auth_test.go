@@ -6,7 +6,7 @@ func TestGenerateToken(t *testing.T) {
 	tests := []struct {
 		name    string
 		length  int
-		wantMin int
+		wantMin int // minimum token string length
 	}{
 		{name: "default length when zero", length: 0, wantMin: 32},
 		{name: "custom length", length: 8, wantMin: 16},
@@ -27,20 +27,20 @@ func TestGenerateToken(t *testing.T) {
 
 func TestIsBearerToken(t *testing.T) {
 	tests := []struct {
-		name     string
-		expected string
-		provided string
-		want     bool
+		name      string
+		expected  string
+		provided  string
+		wantMatch bool // isBearerToken() result
 	}{
-		{name: "match", expected: "abc123", provided: "Bearer abc123", want: true},
-		{name: "mismatch", expected: "abc123", provided: "Bearer nope", want: false},
-		{name: "empty expected", expected: "", provided: "Bearer abc123", want: false},
+		{name: "match", expected: "abc123", provided: "Bearer abc123", wantMatch: true},
+		{name: "mismatch", expected: "abc123", provided: "Bearer nope", wantMatch: false},
+		{name: "empty expected", expected: "", provided: "Bearer abc123", wantMatch: false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := isBearerToken(tt.expected, tt.provided); got != tt.want {
-				t.Fatalf("isBearerToken() = %v, want %v", got, tt.want)
+			if got := isBearerToken(tt.expected, tt.provided); got != tt.wantMatch {
+				t.Fatalf("isBearerToken() = %v, want %v", got, tt.wantMatch)
 			}
 		})
 	}

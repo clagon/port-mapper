@@ -10,17 +10,17 @@ import (
 
 func TestSOAPEnvelope(t *testing.T) {
 	tests := []struct {
-		name        string
-		action      string
-		serviceType string
-		body        map[string]string
-		wantContain []string
+		name               string
+		action             string
+		serviceType        string
+		body               map[string]string
+		wantBodySubstrings []string // SOAP envelope substrings
 	}{
 		{
 			name:        "get external ip action and namespace",
 			action:      "GetExternalIPAddress",
 			serviceType: "urn:schemas-upnp-org:service:WANIPConnection:2",
-			wantContain: []string{
+			wantBodySubstrings: []string{
 				`<u:GetExternalIPAddress xmlns:u="urn:schemas-upnp-org:service:WANIPConnection:2">`,
 				`<s:Envelope`,
 			},
@@ -39,7 +39,7 @@ func TestSOAPEnvelope(t *testing.T) {
 				"NewPortMappingDescription": "test mapping",
 				"NewLeaseDuration":          "3600",
 			},
-			wantContain: []string{
+			wantBodySubstrings: []string{
 				`<u:AddPortMapping xmlns:u="urn:schemas-upnp-org:service:WANIPConnection:2">`,
 				`<NewExternalPort>8080</NewExternalPort>`,
 				`<NewProtocol>TCP</NewProtocol>`,
@@ -56,7 +56,7 @@ func TestSOAPEnvelope(t *testing.T) {
 				"NewExternalPort": "8080",
 				"NewProtocol":     "UDP",
 			},
-			wantContain: []string{
+			wantBodySubstrings: []string{
 				`<u:DeletePortMapping xmlns:u="urn:schemas-upnp-org:service:WANIPConnection:2">`,
 				`<NewExternalPort>8080</NewExternalPort>`,
 				`<NewProtocol>UDP</NewProtocol>`,
@@ -71,7 +71,7 @@ func TestSOAPEnvelope(t *testing.T) {
 				t.Fatalf("buildSOAPEnvelope() error = %v", err)
 			}
 			body := string(got)
-			for _, want := range tt.wantContain {
+			for _, want := range tt.wantBodySubstrings {
 				if !strings.Contains(body, want) {
 					t.Fatalf("envelope missing %q\n%s", want, body)
 				}

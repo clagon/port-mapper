@@ -7,14 +7,14 @@ import (
 
 func TestFallbackGatewayLocations(t *testing.T) {
 	tests := []struct {
-		name string
-		cidr string
-		want string
+		name            string
+		cidr            string
+		wantLocationURL string // fallback root description URL
 	}{
 		{
-			name: "includes default root description",
-			cidr: "192.168.1.20/24",
-			want: "http://192.168.1.1:5000/rootDesc.xml",
+			name:            "includes default root description",
+			cidr:            "192.168.1.20/24",
+			wantLocationURL: "http://192.168.1.1:5000/rootDesc.xml",
 		},
 	}
 
@@ -34,27 +34,27 @@ func TestFallbackGatewayLocations(t *testing.T) {
 			}
 
 			for _, location := range got {
-				if location == tt.want {
+				if location == tt.wantLocationURL {
 					return
 				}
 			}
-			t.Fatalf("fallbackGatewayLocations() missing %s", tt.want)
+			t.Fatalf("fallbackGatewayLocations() missing %s", tt.wantLocationURL)
 		})
 	}
 }
 
 func TestFallbackControlCandidates(t *testing.T) {
 	tests := []struct {
-		name            string
-		cidr            string
-		wantURL         string
-		wantServiceType string
+		name               string
+		cidr               string
+		wantControlURL     string // DiscoveryResult.ControlURL
+		wantControlService string // DiscoveryResult.ServiceType
 	}{
 		{
-			name:            "includes wan ip candidate",
-			cidr:            "192.168.1.20/24",
-			wantURL:         "http://192.168.1.1:5000/upnp/control/WANIPConn1",
-			wantServiceType: "urn:schemas-upnp-org:service:WANIPConnection:2",
+			name:               "includes wan ip candidate",
+			cidr:               "192.168.1.20/24",
+			wantControlURL:     "http://192.168.1.1:5000/upnp/control/WANIPConn1",
+			wantControlService: "urn:schemas-upnp-org:service:WANIPConnection:2",
 		},
 	}
 
@@ -74,11 +74,11 @@ func TestFallbackControlCandidates(t *testing.T) {
 			}
 
 			for _, candidate := range got {
-				if candidate.ControlURL == tt.wantURL && candidate.ServiceType == tt.wantServiceType {
+				if candidate.ControlURL == tt.wantControlURL && candidate.ServiceType == tt.wantControlService {
 					return
 				}
 			}
-			t.Fatalf("fallbackControlCandidates() missing %s", tt.wantURL)
+			t.Fatalf("fallbackControlCandidates() missing %s", tt.wantControlURL)
 		})
 	}
 }

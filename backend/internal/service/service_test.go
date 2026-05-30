@@ -109,10 +109,10 @@ func TestDiscoverUpdatesStatusAndSoftNoGateway(t *testing.T) {
 		name           string
 		discovery      *fakeDiscovery
 		mapper         *fakeMapper
-		wantDiscovered bool
-		wantCalls      int
-		wantControlURL string
-		wantExternalIP string
+		wantDiscovered bool   // Status.Discovered
+		wantCalls      int    // fakeDiscovery.Discover call count
+		wantControlURL string // Status.ControlURL
+		wantExternalIP string // Status.ExternalIP
 	}{
 		{
 			name: "updates discovered status",
@@ -259,16 +259,16 @@ func TestUpdateSettingsUsesInjectedSettingsStore(t *testing.T) {
 
 func TestUpdateSettingsDoesNotMutateConfigWhenSettingsStoreFails(t *testing.T) {
 	tests := []struct {
-		name       string
-		initial    config.Config
-		next       config.Config
-		wantListen string
+		name           string
+		initial        config.Config
+		next           config.Config
+		wantListenAddr string // Service.Settings().ListenAddr
 	}{
 		{
-			name:       "settings unchanged on save error",
-			initial:    config.Config{ListenAddr: "127.0.0.1:8080", AutoDiscover: config.BoolPtr(true)},
-			next:       config.Config{ListenAddr: "127.0.0.1:9090", AutoDiscover: config.BoolPtr(false)},
-			wantListen: "127.0.0.1:8080",
+			name:           "settings unchanged on save error",
+			initial:        config.Config{ListenAddr: "127.0.0.1:8080", AutoDiscover: config.BoolPtr(true)},
+			next:           config.Config{ListenAddr: "127.0.0.1:9090", AutoDiscover: config.BoolPtr(false)},
+			wantListenAddr: "127.0.0.1:8080",
 		},
 	}
 
@@ -284,7 +284,7 @@ func TestUpdateSettingsDoesNotMutateConfigWhenSettingsStoreFails(t *testing.T) {
 			if !errors.Is(err, storeErr) {
 				t.Fatalf("UpdateSettings() error = %v, want %v", err, storeErr)
 			}
-			if got := svc.Settings().ListenAddr; got != tt.wantListen {
+			if got := svc.Settings().ListenAddr; got != tt.wantListenAddr {
 				t.Fatalf("Settings().ListenAddr = %q, want original", got)
 			}
 		})

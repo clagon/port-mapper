@@ -21,7 +21,7 @@ func TestNew(t *testing.T) {
 	tests := []struct {
 		name     string
 		opts     AppOptions
-		wantAddr string
+		wantAddr string // App.Addr()
 	}{
 		{
 			name:     "default address",
@@ -106,9 +106,9 @@ func TestStartOpensBrowserOnlyWhenEnabled(t *testing.T) {
 	tests := []struct {
 		name        string
 		openBrowser bool
-		wantCalls   int
-		wantURL     string
-		wantLog     string
+		wantCalls   int    // browser opener call count
+		wantURL     string // browser opener URL
+		wantLog     string // log output substring
 	}{
 		{name: "disabled", openBrowser: false, wantCalls: 0},
 		{name: "enabled", openBrowser: true, wantCalls: 1, wantURL: "http://127.0.0.1:61234/", wantLog: "opening browser"},

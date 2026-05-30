@@ -17,13 +17,13 @@ func TestStatic(t *testing.T) {
 	t.Cleanup(func() { assetsFS = origAssetsFS })
 
 	tests := []struct {
-		name       string
-		path       string
-		wantStatus int
-		wantString string
+		name              string
+		path              string
+		wantStatus        int    // httptest.ResponseRecorder.Code
+		wantBodySubstring string // static HTML body substring
 	}{
-		{name: "root serves index", path: "/", wantStatus: http.StatusOK, wantString: "port-mapper"},
-		{name: "spa fallback serves index", path: "/dashboard", wantStatus: http.StatusOK, wantString: "port-mapper"},
+		{name: "root serves index", path: "/", wantStatus: http.StatusOK, wantBodySubstring: "port-mapper"},
+		{name: "spa fallback serves index", path: "/dashboard", wantStatus: http.StatusOK, wantBodySubstring: "port-mapper"},
 	}
 
 	srv := New("127.0.0.1:8080", nil, nil)
@@ -36,8 +36,8 @@ func TestStatic(t *testing.T) {
 				t.Fatalf("status = %d, want %d", rec.Code, tt.wantStatus)
 			}
 			body, _ := io.ReadAll(rec.Body)
-			if !strings.Contains(string(body), tt.wantString) {
-				t.Fatalf("body missing %q: %s", tt.wantString, string(body))
+			if !strings.Contains(string(body), tt.wantBodySubstring) {
+				t.Fatalf("body missing %q: %s", tt.wantBodySubstring, string(body))
 			}
 		})
 	}

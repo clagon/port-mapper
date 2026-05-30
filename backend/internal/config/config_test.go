@@ -8,27 +8,27 @@ import (
 
 func TestWithDefaults(t *testing.T) {
 	tests := []struct {
-		name string
-		in   Config
-		want string
+		name           string
+		in             Config
+		wantListenAddr string // Config.WithDefaults().ListenAddr
 	}{
 		{
-			name: "empty listen addr uses default",
-			in:   Config{},
-			want: "127.0.0.1:61234",
+			name:           "empty listen addr uses default",
+			in:             Config{},
+			wantListenAddr: "127.0.0.1:61234",
 		},
 		{
-			name: "explicit listen addr is preserved",
-			in:   Config{ListenAddr: "127.0.0.1:9090"},
-			want: "127.0.0.1:9090",
+			name:           "explicit listen addr is preserved",
+			in:             Config{ListenAddr: "127.0.0.1:9090"},
+			wantListenAddr: "127.0.0.1:9090",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := tt.in.WithDefaults()
-			if got.ListenAddr != tt.want {
-				t.Fatalf("ListenAddr = %q, want %q", got.ListenAddr, tt.want)
+			if got.ListenAddr != tt.wantListenAddr {
+				t.Fatalf("ListenAddr = %q, want %q", got.ListenAddr, tt.wantListenAddr)
 			}
 		})
 	}
@@ -36,17 +36,19 @@ func TestWithDefaults(t *testing.T) {
 
 func TestLoadAndSave(t *testing.T) {
 	tests := []struct {
-		name      string
-		content   string
-		wantErr   bool
-		wantCfg   Config
-		wantWrite bool
+		name             string
+		content          string
+		wantErr          bool   // Load() error presence
+		wantListenAddr   string // Load().ListenAddr
+		wantAutoDiscover *bool  // Load().AutoDiscover
+		wantWrite        bool   // whether Save() should be exercised
 	}{
 		{
-			name:      "missing file returns defaults",
-			content:   "",
-			wantCfg:   DefaultConfig(),
-			wantWrite: true,
+			name:             "missing file returns defaults",
+			content:          "",
+			wantListenAddr:   DefaultConfig().ListenAddr,
+			wantAutoDiscover: DefaultConfig().AutoDiscover,
+			wantWrite:        true,
 		},
 		{
 			name:    "invalid json errors",
@@ -54,14 +56,16 @@ func TestLoadAndSave(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:    "valid json loads values",
-			content: `{"listen_addr":"127.0.0.1:9090","auto_discover":true}`,
-			wantCfg: Config{ListenAddr: "127.0.0.1:9090", AutoDiscover: BoolPtr(true)},
+			name:             "valid json loads values",
+			content:          `{"listen_addr":"127.0.0.1:9090","auto_discover":true}`,
+			wantListenAddr:   "127.0.0.1:9090",
+			wantAutoDiscover: BoolPtr(true),
 		},
 		{
-			name:    "explicit false is preserved",
-			content: `{"listen_addr":"127.0.0.1:9090","auto_discover":false}`,
-			wantCfg: Config{ListenAddr: "127.0.0.1:9090", AutoDiscover: BoolPtr(false)},
+			name:             "explicit false is preserved",
+			content:          `{"listen_addr":"127.0.0.1:9090","auto_discover":false}`,
+			wantListenAddr:   "127.0.0.1:9090",
+			wantAutoDiscover: BoolPtr(false),
 		},
 	}
 
@@ -86,14 +90,14 @@ func TestLoadAndSave(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Load() error = %v", err)
 			}
-			if got.ListenAddr != tt.wantCfg.ListenAddr {
-				t.Fatalf("Load().ListenAddr = %q, want %q", got.ListenAddr, tt.wantCfg.ListenAddr)
+			if got.ListenAddr != tt.wantListenAddr {
+				t.Fatalf("Load().ListenAddr = %q, want %q", got.ListenAddr, tt.wantListenAddr)
 			}
-			if got.AutoDiscover == nil || tt.wantCfg.AutoDiscover == nil {
-				t.Fatalf("Load().AutoDiscover nil mismatch: got=%v want=%v", got.AutoDiscover, tt.wantCfg.AutoDiscover)
+			if got.AutoDiscover == nil || tt.wantAutoDiscover == nil {
+				t.Fatalf("Load().AutoDiscover nil mismatch: got=%v want=%v", got.AutoDiscover, tt.wantAutoDiscover)
 			}
-			if *got.AutoDiscover != *tt.wantCfg.AutoDiscover {
-				t.Fatalf("Load().AutoDiscover = %v, want %v", *got.AutoDiscover, *tt.wantCfg.AutoDiscover)
+			if *got.AutoDiscover != *tt.wantAutoDiscover {
+				t.Fatalf("Load().AutoDiscover = %v, want %v", *got.AutoDiscover, *tt.wantAutoDiscover)
 			}
 
 			if tt.wantWrite {
@@ -114,12 +118,14 @@ func TestLoadAndSave(t *testing.T) {
 
 func TestFileStoreLoadAndSave(t *testing.T) {
 	tests := []struct {
-		name string
-		want Config
+		name             string
+		wantListenAddr   string // FileStore.Load().ListenAddr
+		wantAutoDiscover *bool  // FileStore.Load().AutoDiscover
 	}{
 		{
-			name: "save then load",
-			want: Config{ListenAddr: "127.0.0.1:9090", AutoDiscover: BoolPtr(false)},
+			name:             "save then load",
+			wantListenAddr:   "127.0.0.1:9090",
+			wantAutoDiscover: BoolPtr(false),
 		},
 	}
 
@@ -128,18 +134,18 @@ func TestFileStoreLoadAndSave(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "nested", "config.json")
 			store := FileStore{Path: path}
 
-			if err := store.Save(tt.want); err != nil {
+			if err := store.Save(Config{ListenAddr: tt.wantListenAddr, AutoDiscover: tt.wantAutoDiscover}); err != nil {
 				t.Fatalf("FileStore.Save() error = %v", err)
 			}
 			got, err := store.Load()
 			if err != nil {
 				t.Fatalf("FileStore.Load() error = %v", err)
 			}
-			if got.ListenAddr != tt.want.ListenAddr {
-				t.Fatalf("FileStore.Load().ListenAddr = %q, want %q", got.ListenAddr, tt.want.ListenAddr)
+			if got.ListenAddr != tt.wantListenAddr {
+				t.Fatalf("FileStore.Load().ListenAddr = %q, want %q", got.ListenAddr, tt.wantListenAddr)
 			}
-			if got.AutoDiscover == nil || *got.AutoDiscover != *tt.want.AutoDiscover {
-				t.Fatalf("FileStore.Load().AutoDiscover = %v, want %v", got.AutoDiscover, *tt.want.AutoDiscover)
+			if got.AutoDiscover == nil || *got.AutoDiscover != *tt.wantAutoDiscover {
+				t.Fatalf("FileStore.Load().AutoDiscover = %v, want %v", got.AutoDiscover, *tt.wantAutoDiscover)
 			}
 		})
 	}

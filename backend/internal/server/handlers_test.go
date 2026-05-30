@@ -60,11 +60,11 @@ func TestHealthAndReadEndpoints(t *testing.T) {
 	tests := []struct {
 		name           string
 		path           string
-		wantStatus     int
-		wantHealthOK   bool
-		wantDiscovered bool
-		wantControlURL string
-		wantListenAddr string
+		wantStatus     int    // httptest.ResponseRecorder.Code
+		wantHealthOK   bool   // HealthResponse.Ok
+		wantDiscovered bool   // StatusResponse.Discovered
+		wantControlURL string // StatusResponse.ControlURL
+		wantListenAddr string // config.Config.ListenAddr
 	}{
 		{
 			name:         "ヘルスチェックを返す",
@@ -128,11 +128,11 @@ func TestMutatingEndpointsBindRequests(t *testing.T) {
 		name                     string
 		path                     string
 		body                     []byte
-		wantStatus               int
-		wantOpenRequest          domain.PortMapping
-		wantCloseRequest         domain.PortMapping
-		wantSettingsListenAddr   string
-		wantSettingsAutoDiscover *bool
+		wantStatus               int                // httptest.ResponseRecorder.Code
+		wantOpenRequest          domain.PortMapping // fakeAPIService.openRequest
+		wantCloseRequest         domain.PortMapping // fakeAPIService.closeRequest
+		wantSettingsListenAddr   string             // fakeAPIService.settingsReq.ListenAddr
+		wantSettingsAutoDiscover *bool              // fakeAPIService.settingsReq.AutoDiscover
 	}{
 		{
 			name:       "探索を受け付ける",
@@ -216,7 +216,7 @@ func TestEndpointErrorConversion(t *testing.T) {
 		method     string
 		path       string
 		body       string
-		wantStatus int
+		wantStatus int // httptest.ResponseRecorder.Code
 	}{
 		{name: "探索エラー", method: http.MethodPost, path: "/api/discover", wantStatus: http.StatusBadGateway},
 		{name: "ポート開放エラー", method: http.MethodPost, path: "/api/ports/open", body: `{"protocol":"TCP"}`, wantStatus: http.StatusBadRequest},
