@@ -142,72 +142,94 @@ func TestParseRootDevice(t *testing.T) {
 }
 
 func TestDiscoverFromLocation(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = io.WriteString(w, readTestData(t, "rootdesc-wanipconnection2.xml"))
-	}))
-	defer server.Close()
-
-	got, err := discoverFromLocation(server.URL, func(location string) ([]byte, error) {
-		resp, err := http.Get(location)
-		if err != nil {
-			return nil, err
-		}
-		defer resp.Body.Close()
-		return io.ReadAll(resp.Body)
-	})
-	if err != nil {
-		t.Fatalf("discoverFromLocation() error = %v", err)
+	tests := []struct {
+		name string
+	}{
+		{
+			name: "discovers control url from location",
+		},
 	}
-	if got.ControlURL != server.URL+"/upnp/control/WANIPConn2" {
-		t.Fatalf("ControlURL = %q", got.ControlURL)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				_, _ = io.WriteString(w, readTestData(t, "rootdesc-wanipconnection2.xml"))
+			}))
+			defer server.Close()
+
+			got, err := discoverFromLocation(server.URL, func(location string) ([]byte, error) {
+				resp, err := http.Get(location)
+				if err != nil {
+					return nil, err
+				}
+				defer resp.Body.Close()
+				return io.ReadAll(resp.Body)
+			})
+			if err != nil {
+				t.Fatalf("discoverFromLocation() error = %v", err)
+			}
+			if got.ControlURL != server.URL+"/upnp/control/WANIPConn2" {
+				t.Fatalf("ControlURL = %q", got.ControlURL)
+			}
+		})
 	}
 }
 
 func TestLiveDiscover(t *testing.T) {
-	if os.Getenv("PORT_MAPPER_LIVE_UPNP") != "1" {
-		t.Skip("set PORT_MAPPER_LIVE_UPNP=1 to run live UPnP discovery")
+	tests := []struct {
+		name string
+	}{
+		{
+			name: "live discover",
+		},
 	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if os.Getenv("PORT_MAPPER_LIVE_UPNP") != "1" {
+				t.Skip("set PORT_MAPPER_LIVE_UPNP=1 to run live UPnP discovery")
+			}
 
-	ifaces, err := discoverInterfaces()
-	if err != nil {
-		t.Fatalf("discoverInterfaces() error = %v", err)
-	}
-	for _, iface := range ifaces {
-		t.Logf("interface ip=%s name=%s", iface.ListenAddr.IP, interfaceName(iface.Interface))
-		responses, err := collectSSDPResponses(iface)
-		if err != nil {
-			t.Logf("collectSSDPResponses() error = %v", err)
-			continue
-		}
-		for _, response := range responses {
-			t.Logf("ssdp target=%q st=%q usn=%q location=%q score=%d", response.SearchTarget, response.ST, response.USN, response.Location, ssdpCandidateScore(response))
-		}
-	}
-	ipv6Ifaces, err := discoverIPv6Interfaces()
-	if err != nil {
-		t.Logf("discoverIPv6Interfaces() error = %v", err)
-	}
-	for _, iface := range ipv6Ifaces {
-		t.Logf("ipv6 interface bind=%s name=%s", iface.ListenAddr.IP, interfaceName(iface.Interface))
-		responses, err := collectSSDPResponsesIPv6(iface)
-		if err != nil {
-			t.Logf("collectSSDPResponsesIPv6() error = %v", err)
-			continue
-		}
-		for _, response := range responses {
-			t.Logf("ipv6 ssdp target=%q st=%q usn=%q location=%q score=%d", response.SearchTarget, response.ST, response.USN, response.Location, ssdpCandidateScore(response))
-		}
-	}
+			ifaces, err := discoverInterfaces()
+			if err != nil {
+				t.Fatalf("discoverInterfaces() error = %v", err)
+			}
+			for _, iface := range ifaces {
+				t.Logf("interface ip=%s name=%s", iface.ListenAddr.IP, interfaceName(iface.Interface))
+				responses, err := collectSSDPResponses(iface)
+				if err != nil {
+					t.Logf("collectSSDPResponses() error = %v", err)
+					continue
+				}
+				for _, response := range responses {
+					t.Logf("ssdp target=%q st=%q usn=%q location=%q score=%d", response.SearchTarget, response.ST, response.USN, response.Location, ssdpCandidateScore(response))
+				}
+			}
+			ipv6Ifaces, err := discoverIPv6Interfaces()
+			if err != nil {
+				t.Logf("discoverIPv6Interfaces() error = %v", err)
+			}
+			for _, iface := range ipv6Ifaces {
+				t.Logf("ipv6 interface bind=%s name=%s", iface.ListenAddr.IP, interfaceName(iface.Interface))
+				responses, err := collectSSDPResponsesIPv6(iface)
+				if err != nil {
+					t.Logf("collectSSDPResponsesIPv6() error = %v", err)
+					continue
+				}
+				for _, response := range responses {
+					t.Logf("ipv6 ssdp target=%q st=%q usn=%q location=%q score=%d", response.SearchTarget, response.ST, response.USN, response.Location, ssdpCandidateScore(response))
+				}
+			}
 
-	got, err := Discover()
-	if err != nil {
-		t.Fatalf("Discover() error = %v", err)
-	}
-	if got.ServiceType == "" {
-		t.Fatal("ServiceType is empty")
-	}
-	if got.ControlURL == "" {
-		t.Fatal("ControlURL is empty")
+			got, err := Discover()
+			if err != nil {
+				t.Fatalf("Discover() error = %v", err)
+			}
+			if got.ServiceType == "" {
+				t.Fatal("ServiceType is empty")
+			}
+			if got.ControlURL == "" {
+				t.Fatal("ControlURL is empty")
+			}
+		})
 	}
 }
 

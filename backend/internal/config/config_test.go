@@ -113,21 +113,34 @@ func TestLoadAndSave(t *testing.T) {
 }
 
 func TestFileStoreLoadAndSave(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "nested", "config.json")
-	store := FileStore{Path: path}
-	want := Config{ListenAddr: "127.0.0.1:9090", AutoDiscover: BoolPtr(false)}
+	tests := []struct {
+		name string
+		want Config
+	}{
+		{
+			name: "save then load",
+			want: Config{ListenAddr: "127.0.0.1:9090", AutoDiscover: BoolPtr(false)},
+		},
+	}
 
-	if err := store.Save(want); err != nil {
-		t.Fatalf("FileStore.Save() error = %v", err)
-	}
-	got, err := store.Load()
-	if err != nil {
-		t.Fatalf("FileStore.Load() error = %v", err)
-	}
-	if got.ListenAddr != want.ListenAddr {
-		t.Fatalf("FileStore.Load().ListenAddr = %q, want %q", got.ListenAddr, want.ListenAddr)
-	}
-	if got.AutoDiscover == nil || *got.AutoDiscover != *want.AutoDiscover {
-		t.Fatalf("FileStore.Load().AutoDiscover = %v, want %v", got.AutoDiscover, *want.AutoDiscover)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "nested", "config.json")
+			store := FileStore{Path: path}
+
+			if err := store.Save(tt.want); err != nil {
+				t.Fatalf("FileStore.Save() error = %v", err)
+			}
+			got, err := store.Load()
+			if err != nil {
+				t.Fatalf("FileStore.Load() error = %v", err)
+			}
+			if got.ListenAddr != tt.want.ListenAddr {
+				t.Fatalf("FileStore.Load().ListenAddr = %q, want %q", got.ListenAddr, tt.want.ListenAddr)
+			}
+			if got.AutoDiscover == nil || *got.AutoDiscover != *tt.want.AutoDiscover {
+				t.Fatalf("FileStore.Load().AutoDiscover = %v, want %v", got.AutoDiscover, *tt.want.AutoDiscover)
+			}
+		})
 	}
 }

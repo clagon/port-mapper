@@ -81,16 +81,25 @@ func TestSOAPEnvelope(t *testing.T) {
 }
 
 func TestSOAPGetExternalIPAddress(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			t.Fatalf("method = %s, want POST", r.Method)
-		}
-		if got := r.Header.Get("SOAPAction"); got != `"urn:schemas-upnp-org:service:WANIPConnection:2#GetExternalIPAddress"` {
-			t.Fatalf("SOAPAction = %q", got)
-		}
-		_, _ = io.ReadAll(r.Body)
-		w.Header().Set("Content-Type", "text/xml")
-		_, _ = w.Write([]byte(`<?xml version="1.0"?>
+	tests := []struct {
+		name string
+	}{
+		{
+			name: "get external ip",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method != http.MethodPost {
+					t.Fatalf("method = %s, want POST", r.Method)
+				}
+				if got := r.Header.Get("SOAPAction"); got != `"urn:schemas-upnp-org:service:WANIPConnection:2#GetExternalIPAddress"` {
+					t.Fatalf("SOAPAction = %q", got)
+				}
+				_, _ = io.ReadAll(r.Body)
+				w.Header().Set("Content-Type", "text/xml")
+				_, _ = w.Write([]byte(`<?xml version="1.0"?>
 <s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
   <s:Body>
     <u:GetExternalIPAddressResponse xmlns:u="urn:schemas-upnp-org:service:WANIPConnection:2">
@@ -98,35 +107,57 @@ func TestSOAPGetExternalIPAddress(t *testing.T) {
     </u:GetExternalIPAddressResponse>
   </s:Body>
 </s:Envelope>`))
-	}))
-	defer server.Close()
+			}))
+			defer server.Close()
 
-	c := &SOAPClient{
-		Endpoint:    server.URL,
-		ServiceType: "urn:schemas-upnp-org:service:WANIPConnection:2",
-		HTTPClient:  server.Client(),
-	}
-	got, err := c.GetExternalIPAddress()
-	if err != nil {
-		t.Fatalf("GetExternalIPAddress() error = %v", err)
-	}
-	if got != "203.0.113.42" {
-		t.Fatalf("GetExternalIPAddress() = %q, want %q", got, "203.0.113.42")
+			c := &SOAPClient{
+				Endpoint:    server.URL,
+				ServiceType: "urn:schemas-upnp-org:service:WANIPConnection:2",
+				HTTPClient:  server.Client(),
+			}
+			got, err := c.GetExternalIPAddress()
+			if err != nil {
+				t.Fatalf("GetExternalIPAddress() error = %v", err)
+			}
+			if got != "203.0.113.42" {
+				t.Fatalf("GetExternalIPAddress() = %q, want %q", got, "203.0.113.42")
+			}
+		})
 	}
 }
 
 func TestSOAPClientDefaultTimeout(t *testing.T) {
-	if got := (&SOAPClient{}).client(); got == nil {
-		t.Fatal("client() = nil")
-	} else if got.Timeout <= 0 {
-		t.Fatalf("client timeout = %v, want > 0", got.Timeout)
+	tests := []struct {
+		name string
+	}{
+		{
+			name: "default timeout",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := (&SOAPClient{}).client(); got == nil {
+				t.Fatal("client() = nil")
+			} else if got.Timeout <= 0 {
+				t.Fatalf("client timeout = %v, want > 0", got.Timeout)
+			}
+		})
 	}
 }
 
 func TestSOAPFault(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = w.Write([]byte(`<?xml version="1.0"?>
+	tests := []struct {
+		name string
+	}{
+		{
+			name: "soap fault",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusInternalServerError)
+				_, _ = w.Write([]byte(`<?xml version="1.0"?>
 <s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
   <s:Body>
     <s:Fault>
@@ -141,19 +172,21 @@ func TestSOAPFault(t *testing.T) {
     </s:Fault>
   </s:Body>
 </s:Envelope>`))
-	}))
-	defer server.Close()
+			}))
+			defer server.Close()
 
-	c := &SOAPClient{
-		Endpoint:    server.URL,
-		ServiceType: "urn:schemas-upnp-org:service:WANIPConnection:2",
-		HTTPClient:  server.Client(),
-	}
-	_, err := c.GetExternalIPAddress()
-	if err == nil {
-		t.Fatal("GetExternalIPAddress() error = nil, want error")
-	}
-	if !strings.Contains(err.Error(), "Invalid Action") {
-		t.Fatalf("error = %v, want SOAP fault", err)
+			c := &SOAPClient{
+				Endpoint:    server.URL,
+				ServiceType: "urn:schemas-upnp-org:service:WANIPConnection:2",
+				HTTPClient:  server.Client(),
+			}
+			_, err := c.GetExternalIPAddress()
+			if err == nil {
+				t.Fatal("GetExternalIPAddress() error = nil, want error")
+			}
+			if !strings.Contains(err.Error(), "Invalid Action") {
+				t.Fatalf("error = %v, want SOAP fault", err)
+			}
+		})
 	}
 }

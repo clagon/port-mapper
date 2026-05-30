@@ -78,13 +78,27 @@ func TestNewRejectsNonLocalListenAddr(t *testing.T) {
 }
 
 func TestConfigPathDefaultUsesBinaryDir(t *testing.T) {
-	a, err := New(AppOptions{})
-	if err != nil {
-		t.Fatalf("New() error = %v", err)
+	tests := []struct {
+		name string
+		opts AppOptions
+	}{
+		{
+			name: "default config path",
+			opts: AppOptions{},
+		},
 	}
 
-	if got, want := a.ConfigPath(), config.DefaultPath(); got != want {
-		t.Fatalf("ConfigPath() = %q, want %q", got, want)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a, err := New(tt.opts)
+			if err != nil {
+				t.Fatalf("New() error = %v", err)
+			}
+
+			if got, want := a.ConfigPath(), config.DefaultPath(); got != want {
+				t.Fatalf("ConfigPath() = %q, want %q", got, want)
+			}
+		})
 	}
 }
 
@@ -133,25 +147,39 @@ func TestStartOpensBrowserOnlyWhenEnabled(t *testing.T) {
 }
 
 func TestHealthHandler(t *testing.T) {
-	a, err := New(AppOptions{Logger: slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelInfo}))})
-	if err != nil {
-		t.Fatalf("New() error = %v", err)
+	tests := []struct {
+		name string
+		path string
+	}{
+		{
+			name: "health handler",
+			path: "/api/health",
+		},
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/api/health", nil)
-	rec := httptest.NewRecorder()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a, err := New(AppOptions{Logger: slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelInfo}))})
+			if err != nil {
+				t.Fatalf("New() error = %v", err)
+			}
 
-	a.Handler().ServeHTTP(rec, req)
+			req := httptest.NewRequest(http.MethodGet, tt.path, nil)
+			rec := httptest.NewRecorder()
 
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
-	}
+			a.Handler().ServeHTTP(rec, req)
 
-	var got map[string]bool
-	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
-		t.Fatalf("unmarshal body: %v", err)
-	}
-	if !got["ok"] {
-		t.Fatalf("body = %s, want {\"ok\":true}", rec.Body.String())
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+			}
+
+			var got map[string]bool
+			if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+				t.Fatalf("unmarshal body: %v", err)
+			}
+			if !got["ok"] {
+				t.Fatalf("body = %s, want {\"ok\":true}", rec.Body.String())
+			}
+		})
 	}
 }

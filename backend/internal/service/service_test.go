@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/clagon/port-mapper/backend/internal/domain"
 	"github.com/clagon/port-mapper/backend/internal/config"
+	"github.com/clagon/port-mapper/backend/internal/domain"
 )
 
 type fakeDiscovery struct {
@@ -71,88 +71,140 @@ func newTestService(cfgPath string, discovery domain.DiscoveryClient, mapper *fa
 }
 
 func TestSettingsPersistToDisk(t *testing.T) {
-	cfgPath := filepath.Join(t.TempDir(), "config.json")
-	svc := New(Options{ConfigPath: cfgPath, Config: config.DefaultConfig()})
-
-	next := config.Config{ListenAddr: "127.0.0.1:9090", AutoDiscover: config.BoolPtr(false)}
-	if _, err := svc.UpdateSettings(next); err != nil {
-		t.Fatalf("UpdateSettings() error = %v", err)
+	tests := []struct {
+		name string
+		next config.Config
+	}{
+		{
+			name: "persist updated settings",
+			next: config.Config{ListenAddr: "127.0.0.1:9090", AutoDiscover: config.BoolPtr(false)},
+		},
 	}
 
-	loaded, err := config.Load(cfgPath)
-	if err != nil {
-		t.Fatalf("Load() error = %v", err)
-	}
-	if loaded.ListenAddr != next.ListenAddr {
-		t.Fatalf("listen_addr = %q, want %q", loaded.ListenAddr, next.ListenAddr)
-	}
-	if loaded.AutoDiscover == nil || *loaded.AutoDiscover {
-		t.Fatalf("auto_discover = %v, want false", loaded.AutoDiscover)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfgPath := filepath.Join(t.TempDir(), "config.json")
+			svc := New(Options{ConfigPath: cfgPath, Config: config.DefaultConfig()})
+
+			if _, err := svc.UpdateSettings(tt.next); err != nil {
+				t.Fatalf("UpdateSettings() error = %v", err)
+			}
+
+			loaded, err := config.Load(cfgPath)
+			if err != nil {
+				t.Fatalf("Load() error = %v", err)
+			}
+			if loaded.ListenAddr != tt.next.ListenAddr {
+				t.Fatalf("listen_addr = %q, want %q", loaded.ListenAddr, tt.next.ListenAddr)
+			}
+			if loaded.AutoDiscover == nil || *loaded.AutoDiscover {
+				t.Fatalf("auto_discover = %v, want false", loaded.AutoDiscover)
+			}
+		})
 	}
 }
 
 func TestDiscoverUpdatesStatusAndSoftNoGateway(t *testing.T) {
-	discovery := &fakeDiscovery{result: domain.DiscoveryResult{
-		ServiceType: "urn:schemas-upnp-org:service:WANIPConnection:2",
-		ControlURL:  "http://192.168.1.1:1900/upnp/control/WANIPConn2",
-	}}
-	mapper := &fakeMapper{externalIP: "203.0.113.42"}
-	svc := newTestService(filepath.Join(t.TempDir(), "config.json"), discovery, mapper)
+	tests := []struct {
+		name           string
+		discovery      *fakeDiscovery
+		mapper         *fakeMapper
+		wantDiscovered bool
+		wantCalls      int
+		wantControlURL string
+		wantExternalIP string
+	}{
+		{
+			name: "updates discovered status",
+			discovery: &fakeDiscovery{result: domain.DiscoveryResult{
+				ServiceType: "urn:schemas-upnp-org:service:WANIPConnection:2",
+				ControlURL:  "http://192.168.1.1:1900/upnp/control/WANIPConn2",
+			}},
+			mapper:         &fakeMapper{externalIP: "203.0.113.42"},
+			wantDiscovered: true,
+			wantCalls:      1,
+			wantControlURL: "http://192.168.1.1:1900/upnp/control/WANIPConn2",
+			wantExternalIP: "203.0.113.42",
+		},
+		{
+			name:           "soft no gateway",
+			discovery:      &fakeDiscovery{err: domain.ErrNoGateway},
+			mapper:         &fakeMapper{},
+			wantDiscovered: false,
+			wantCalls:      1,
+		},
+	}
 
-	got, err := svc.Discover()
-	if err != nil {
-		t.Fatalf("Discover() error = %v", err)
-	}
-	if discovery.calls != 1 {
-		t.Fatalf("discover calls = %d, want 1", discovery.calls)
-	}
-	if !got.Discovered || got.ControlURL != discovery.result.ControlURL || got.ExternalIP != mapper.externalIP {
-		t.Fatalf("status = %+v", got)
-	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := newTestService(filepath.Join(t.TempDir(), "config.json"), tt.discovery, tt.mapper)
 
-	soft := newTestService(filepath.Join(t.TempDir(), "config.json"), &fakeDiscovery{err: domain.ErrNoGateway}, &fakeMapper{})
-	got, err = soft.Discover()
-	if err != nil {
-		t.Fatalf("Discover() no gateway error = %v", err)
-	}
-	if got.Discovered {
-		t.Fatal("Discovered = true, want false")
+			got, err := svc.Discover()
+			if err != nil {
+				t.Fatalf("Discover() error = %v", err)
+			}
+			if tt.discovery.calls != tt.wantCalls {
+				t.Fatalf("discover calls = %d, want %d", tt.discovery.calls, tt.wantCalls)
+			}
+			if got.Discovered != tt.wantDiscovered {
+				t.Fatalf("Discovered = %v, want %v", got.Discovered, tt.wantDiscovered)
+			}
+			if tt.wantControlURL != "" && got.ControlURL != tt.wantControlURL {
+				t.Fatalf("ControlURL = %q, want %q", got.ControlURL, tt.wantControlURL)
+			}
+			if tt.wantExternalIP != "" && got.ExternalIP != tt.wantExternalIP {
+				t.Fatalf("ExternalIP = %q, want %q", got.ExternalIP, tt.wantExternalIP)
+			}
+		})
 	}
 }
 
 func TestOpenAndClosePortUpdatesStatus(t *testing.T) {
-	discovery := &fakeDiscovery{result: domain.DiscoveryResult{
-		ServiceType: "urn:schemas-upnp-org:service:WANIPConnection:2",
-		ControlURL:  "http://192.168.1.1:1900/upnp/control/WANIPConn2",
-	}}
-	mapper := &fakeMapper{externalIP: "203.0.113.42"}
-	svc := newTestService(filepath.Join(t.TempDir(), "config.json"), discovery, mapper)
-	if _, err := svc.Discover(); err != nil {
-		t.Fatalf("Discover() error = %v", err)
+	tests := []struct {
+		name    string
+		mapping domain.PortMapping
+	}{
+		{
+			name: "open then close port",
+			mapping: domain.PortMapping{
+				Protocol:             "TCP",
+				ExternalPort:         8080,
+				InternalIP:           "192.168.1.20",
+				InternalPort:         8080,
+				Description:          "test mapping",
+				LeaseDurationSeconds: 3600,
+			},
+		},
 	}
 
-	mapping := domain.PortMapping{
-		Protocol:             "TCP",
-		ExternalPort:         8080,
-		InternalIP:           "192.168.1.20",
-		InternalPort:         8080,
-		Description:          "test mapping",
-		LeaseDurationSeconds: 3600,
-	}
-	got, err := svc.OpenPort(mapping)
-	if err != nil {
-		t.Fatalf("OpenPort() error = %v", err)
-	}
-	if len(mapper.addCalls) != 1 || len(got.Ports) != 1 {
-		t.Fatalf("add calls = %d ports = %d", len(mapper.addCalls), len(got.Ports))
-	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			discovery := &fakeDiscovery{result: domain.DiscoveryResult{
+				ServiceType: "urn:schemas-upnp-org:service:WANIPConnection:2",
+				ControlURL:  "http://192.168.1.1:1900/upnp/control/WANIPConn2",
+			}}
+			mapper := &fakeMapper{externalIP: "203.0.113.42"}
+			svc := newTestService(filepath.Join(t.TempDir(), "config.json"), discovery, mapper)
+			if _, err := svc.Discover(); err != nil {
+				t.Fatalf("Discover() error = %v", err)
+			}
 
-	got, err = svc.ClosePort(domain.PortMapping{Protocol: "TCP", ExternalPort: 8080})
-	if err != nil {
-		t.Fatalf("ClosePort() error = %v", err)
-	}
-	if len(mapper.deleteCalls) != 1 || len(got.Ports) != 0 {
-		t.Fatalf("delete calls = %d ports = %d", len(mapper.deleteCalls), len(got.Ports))
+			got, err := svc.OpenPort(tt.mapping)
+			if err != nil {
+				t.Fatalf("OpenPort() error = %v", err)
+			}
+			if len(mapper.addCalls) != 1 || len(got.Ports) != 1 {
+				t.Fatalf("add calls = %d ports = %d", len(mapper.addCalls), len(got.Ports))
+			}
+
+			got, err = svc.ClosePort(domain.PortMapping{Protocol: tt.mapping.Protocol, ExternalPort: tt.mapping.ExternalPort})
+			if err != nil {
+				t.Fatalf("ClosePort() error = %v", err)
+			}
+			if len(mapper.deleteCalls) != 1 || len(got.Ports) != 0 {
+				t.Fatalf("delete calls = %d ports = %d", len(mapper.deleteCalls), len(got.Ports))
+			}
+		})
 	}
 }
 
@@ -170,39 +222,71 @@ func (s *recordingSettingsStore) Save(cfg config.Config) error {
 }
 
 func TestUpdateSettingsUsesInjectedSettingsStore(t *testing.T) {
-	store := &recordingSettingsStore{}
-	svc := New(Options{
-		Config:        config.DefaultConfig(),
-		SettingsStore: store,
-	})
+	tests := []struct {
+		name string
+		next config.Config
+	}{
+		{
+			name: "uses injected settings store",
+			next: config.Config{ListenAddr: "127.0.0.1:9090", AutoDiscover: config.BoolPtr(false)},
+		},
+	}
 
-	next, err := svc.UpdateSettings(config.Config{ListenAddr: "127.0.0.1:9090", AutoDiscover: config.BoolPtr(false)})
-	if err != nil {
-		t.Fatalf("UpdateSettings() error = %v", err)
-	}
-	if len(store.saved) != 1 {
-		t.Fatalf("Save() calls = %d, want 1", len(store.saved))
-	}
-	if store.saved[0].ListenAddr != next.ListenAddr {
-		t.Fatalf("saved ListenAddr = %q, want %q", store.saved[0].ListenAddr, next.ListenAddr)
-	}
-	if got := svc.Settings().ListenAddr; got != next.ListenAddr {
-		t.Fatalf("Settings().ListenAddr = %q, want %q", got, next.ListenAddr)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			store := &recordingSettingsStore{}
+			svc := New(Options{
+				Config:        config.DefaultConfig(),
+				SettingsStore: store,
+			})
+
+			next, err := svc.UpdateSettings(tt.next)
+			if err != nil {
+				t.Fatalf("UpdateSettings() error = %v", err)
+			}
+			if len(store.saved) != 1 {
+				t.Fatalf("Save() calls = %d, want 1", len(store.saved))
+			}
+			if store.saved[0].ListenAddr != next.ListenAddr {
+				t.Fatalf("saved ListenAddr = %q, want %q", store.saved[0].ListenAddr, next.ListenAddr)
+			}
+			if got := svc.Settings().ListenAddr; got != next.ListenAddr {
+				t.Fatalf("Settings().ListenAddr = %q, want %q", got, next.ListenAddr)
+			}
+		})
 	}
 }
 
 func TestUpdateSettingsDoesNotMutateConfigWhenSettingsStoreFails(t *testing.T) {
-	storeErr := errors.New("save failed")
-	svc := New(Options{
-		Config:        config.Config{ListenAddr: "127.0.0.1:8080", AutoDiscover: config.BoolPtr(true)},
-		SettingsStore: &recordingSettingsStore{err: storeErr},
-	})
-
-	_, err := svc.UpdateSettings(config.Config{ListenAddr: "127.0.0.1:9090", AutoDiscover: config.BoolPtr(false)})
-	if !errors.Is(err, storeErr) {
-		t.Fatalf("UpdateSettings() error = %v, want %v", err, storeErr)
+	tests := []struct {
+		name       string
+		initial    config.Config
+		next       config.Config
+		wantListen string
+	}{
+		{
+			name:       "settings unchanged on save error",
+			initial:    config.Config{ListenAddr: "127.0.0.1:8080", AutoDiscover: config.BoolPtr(true)},
+			next:       config.Config{ListenAddr: "127.0.0.1:9090", AutoDiscover: config.BoolPtr(false)},
+			wantListen: "127.0.0.1:8080",
+		},
 	}
-	if got := svc.Settings().ListenAddr; got != "127.0.0.1:8080" {
-		t.Fatalf("Settings().ListenAddr = %q, want original", got)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			storeErr := errors.New("save failed")
+			svc := New(Options{
+				Config:        tt.initial,
+				SettingsStore: &recordingSettingsStore{err: storeErr},
+			})
+
+			_, err := svc.UpdateSettings(tt.next)
+			if !errors.Is(err, storeErr) {
+				t.Fatalf("UpdateSettings() error = %v, want %v", err, storeErr)
+			}
+			if got := svc.Settings().ListenAddr; got != tt.wantListen {
+				t.Fatalf("Settings().ListenAddr = %q, want original", got)
+			}
+		})
 	}
 }
