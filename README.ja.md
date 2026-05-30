@@ -83,20 +83,6 @@ go run ./cmd/porto --listen-addr 127.0.0.1:9090 --no-browser
 
 ---
 
-## ✅ 品質チェック
-
-PR を出す前、または UI を変更したときは次を実行してください。
-
-```bash
-cd backend
-go test ./...
-
-npm --prefix frontend run lint
-npm --prefix frontend run build
-```
-
-GitHub Actions でも同じ backend test / frontend lint / frontend build を push と pull request ごとに実行します。
-
 ## 📖 ユーザーガイド & ドキュメント
 
 Porto の使い方や接続時の注意点については、組み込みのドキュメントをご覧ください。アプリ起動後は、ヘッダーのヘルプアイコンからも開けます。
@@ -113,3 +99,20 @@ Go バックエンドは、localhost 上で最小限の HTTP API を公開しま
 ### ヘルスエンドポイント
 - **URL**: `GET /api/health`
 - **レスポンス**: `{"ok":true}`
+
+---
+
+## ✅ 品質チェック
+
+PR を出す前、または UI を変更したときは次を実行してください。
+
+```bash
+cd backend
+go test ./...
+
+npm --prefix frontend run lint
+npm --prefix frontend run build
+```
+
+GitHub Actions でも同じ backend test / frontend lint / frontend build を push と pull request ごとに実行します。
+

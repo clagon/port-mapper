@@ -83,20 +83,6 @@ go run ./cmd/porto --listen-addr 127.0.0.1:9090 --no-browser
 
 ---
 
-## ✅ Quality Checks
-
-Before opening a PR or pushing a UI change, run:
-
-```bash
-cd backend
-go test ./...
-
-npm --prefix frontend run lint
-npm --prefix frontend run build
-```
-
-GitHub Actions runs the same backend test, frontend lint, and frontend build checks on pushes and pull requests.
-
 ## 📖 User Guides & Documentation
 
 To learn more about how to use Porto and what to keep in mind when connecting, check out the built-in docs. After launching the app, you can also open them from the help icon in the header:
@@ -114,4 +100,19 @@ The Go backend exposes a minimal HTTP API on localhost.
 - **URL**: `GET /api/health`
 - **Response**: `{"ok":true}`
 
+---
+
+## ✅ Quality Checks
+
+Before opening a PR or pushing a UI change, run:
+
+```bash
+cd backend
+go test ./...
+
+npm --prefix frontend run lint
+npm --prefix frontend run build
+```
+
+GitHub Actions runs the same backend test, frontend lint, and frontend build checks on pushes and pull requests.
 
