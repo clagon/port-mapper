@@ -6,7 +6,7 @@ import (
 	"net"
 )
 
-const defaultListenAddr = "127.0.0.1:8080"
+const defaultListenAddr = "127.0.0.1:61234"
 
 // Config は、バックエンドサーバーのランタイム設定を保持する構造体です。
 type Config struct {

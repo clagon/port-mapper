@@ -14,7 +14,7 @@ import (
 	"github.com/clagon/port-mapper/backend/internal/upnp"
 )
 
-const defaultListenAddr = "127.0.0.1:8080"
+const defaultListenAddr = "127.0.0.1:61234"
 
 // BrowserOpener は、指定された URL をユーザーのブラウザで開くためのインターフェースです。
 type BrowserOpener interface {

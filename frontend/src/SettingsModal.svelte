@@ -1,7 +1,7 @@
 <script>
   import { createEventDispatcher } from 'svelte';
 
-  export let listenAddr = '127.0.0.1:8080';
+  export let listenAddr = '127.0.0.1:61234';
   export let autoDiscover = true;
 
   const dispatch = createEventDispatcher();
@@ -54,7 +54,7 @@
               id="listenAddr"
               name="listenAddr"
               bind:value={localAddr}
-              placeholder="127.0.0.1:8080"
+              placeholder="127.0.0.1:61234"
               required
               type="text"
             />
