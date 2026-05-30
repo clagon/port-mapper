@@ -5,19 +5,19 @@
 [![Go Version](https://img.shields.io/badge/Go-1.23%2B-00ADD8.svg?style=flat&logo=go)](https://go.dev)
 [![Node Version](https://img.shields.io/badge/Node-18%2B-339933.svg?style=flat&logo=node.js)](https://nodejs.org)
 
-**Porto** (pronounced: `/ˈpɔːr.toʊ/` 📣) is a premium, extremely simple, and secure local UPnP port-opening tool designed for Linux, macOS, and Windows.
+**Porto** (pronounced: `/ˈpɔːr.toʊ/` 📣) is a premium, extremely simple local UPnP port-opening tool designed for Linux, macOS, and Windows.
 
-It provides a beautiful and intuitive interface to temporarily open ports on your router, allowing you to invite friends to join your gaming servers (e.g., Minecraft) or share local web apps in seconds.
+It provides an intuitive interface to temporarily open ports on your router, allowing you to invite friends to join your gaming servers (e.g., Minecraft) or share local web apps in seconds.
 
 > [!NOTE]
-> Porto acts as a friendly guardian of your local network: it helps you open ports only when needed, and close them as soon as you are done, keeping your computer safe from persistent external threats.
+> Porto helps you open ports only when needed and close them as soon as you are done, making it easier to avoid leaving ports open longer than necessary.
 
 ---
 
 ## ✨ Features
 
 - 🚀 **Zero Configuration UPnP**: Automatically discovers your router and maps ports with a single click.
-- 🎨 **Premium Aesthetic UI**: Sleek, modern Svelte + Vite web interface with dark mode and smooth animations.
+- 🎨 **Premium Aesthetic UI**: Sleek, modern Svelte + Vite web interface with a calm color palette and smooth animations.
 - 🔒 **Privacy First & Local-Only**: The UI binds strictly to `127.0.0.1` (localhost) by default. Your configurations never leave your machine.
 - 🛠️ **Seamless Integration**: Single-binary Go backend with the entire frontend assets embedded directly inside it.
 
@@ -43,7 +43,7 @@ npm install
 npm run build
 ```
 
-The frontend build output is generated under `backend/assets/static/` and is embedded during Go compilation (intentionally ignored by Git, leaving only `.gitkeep`).
+The frontend build output is generated under `backend/assets/static/` and is embedded during Go compilation.
 
 ---
 
@@ -57,11 +57,11 @@ go run ./cmd/porto
 ```
 
 Upon startup, Porto will:
-1. Automatically load `config.json` (or use safe defaults if missing).
+1. Automatically load `config.json` (or use defaults if missing).
 2. Start the local server at `127.0.0.1:61234`.
-3. Attempt to automatically open the dashboard in your default browser.
+3. Automatically open the dashboard in your default browser.
 
-If it doesn't open automatically, navigate to:
+Note: If it does not open automatically, navigate to the URL below. If you changed the host or port with `--listen-addr`, use the URL that matches your configuration.
 👉 **[http://127.0.0.1:61234](http://127.0.0.1:61234)**
 
 ---
@@ -85,10 +85,10 @@ go run ./cmd/porto --listen-addr 127.0.0.1:9090 --no-browser
 
 ## 📖 User Guides & Documentation
 
-To learn more about how to use Porto and keep your network safe, check out the built-in docs:
+To learn more about how to use Porto and what to keep in mind when connecting, check out the built-in docs. After launching the app, you can also open them from the help icon in the header:
 - [使い方ガイド (Usage Guide)](frontend/docs/usage.md) ── How to start sharing in 4 simple steps.
 - [Minecraftの設定例 (Minecraft Guide)](frontend/docs/minecraft.md) ── Practical guide to set up Java and Bedrock servers for friends.
-- [安全ガイド & FAQ (Security & FAQ)](frontend/docs/security.md) ── Learn why Porto is safe and solve common connection issues.
+- [安全ガイド & FAQ (Security & FAQ)](frontend/docs/security.md) ── Learn about Porto's safety considerations and solve common connection issues.
 
 ---
 
