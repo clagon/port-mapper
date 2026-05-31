@@ -264,10 +264,27 @@ func TestMutatingEndpointsRequireBrowserToken(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
+			name: "同一ローカルOriginを許可する",
+			configure: func(req *http.Request) {
+				authorizeRequest(req, srv)
+				req.Header.Set(echo.HeaderOrigin, "http://127.0.0.1:8080")
+			},
+			wantStatus: http.StatusAccepted,
+		},
+		{
 			name: "クロスオリジンを拒否する",
 			configure: func(req *http.Request) {
 				authorizeRequest(req, srv)
 				req.Header.Set(echo.HeaderOrigin, "https://example.com")
+			},
+			wantStatus: http.StatusForbidden,
+		},
+		{
+			name: "DNSリバインディング風のHostとOriginを拒否する",
+			configure: func(req *http.Request) {
+				authorizeRequest(req, srv)
+				req.Host = "attacker.example:8080"
+				req.Header.Set(echo.HeaderOrigin, "http://attacker.example:8080")
 			},
 			wantStatus: http.StatusForbidden,
 		},

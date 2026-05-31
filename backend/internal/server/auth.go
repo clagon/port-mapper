@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/hex"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -36,7 +37,7 @@ func isBearerToken(expected, provided string) bool {
 }
 
 // browserTokenMiddleware は、ローカルブラウザからの変更系APIリクエストだけを受け付けるための防御を追加します。
-func browserTokenMiddleware(token string) echo.MiddlewareFunc {
+func browserTokenMiddleware(token, listenAddr string) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			req := c.Request()
@@ -46,7 +47,7 @@ func browserTokenMiddleware(token string) echo.MiddlewareFunc {
 			if !isAllowedFetchSite(req.Header.Get("Sec-Fetch-Site")) {
 				return echo.NewHTTPError(http.StatusForbidden, "cross-site request is not allowed")
 			}
-			if !isAllowedOrigin(req) {
+			if !isAllowedOrigin(req, listenAddr) {
 				return echo.NewHTTPError(http.StatusForbidden, "cross-origin request is not allowed")
 			}
 			if !strings.HasPrefix(req.Header.Get(echo.HeaderContentType), echo.MIMEApplicationJSON) {
@@ -66,7 +67,7 @@ func isAllowedFetchSite(value string) bool {
 	}
 }
 
-func isAllowedOrigin(req *http.Request) bool {
+func isAllowedOrigin(req *http.Request, listenAddr string) bool {
 	origin := strings.TrimSpace(req.Header.Get(echo.HeaderOrigin))
 	if origin == "" {
 		return true
@@ -79,5 +80,37 @@ func isAllowedOrigin(req *http.Request) bool {
 	if req.TLS != nil {
 		expectedScheme = "https"
 	}
-	return strings.EqualFold(u.Scheme, expectedScheme) && strings.EqualFold(u.Host, req.Host)
+	return strings.EqualFold(u.Scheme, expectedScheme) && isAllowedOriginHost(u, listenAddr)
+}
+
+func isAllowedOriginHost(origin *url.URL, listenAddr string) bool {
+	_, port, err := net.SplitHostPort(listenAddr)
+	if err != nil {
+		return false
+	}
+	originHost := strings.ToLower(origin.Hostname())
+	originPort := origin.Port()
+	if originPort == "" {
+		originPort = defaultPortForScheme(origin.Scheme)
+	}
+	if originPort != port {
+		return false
+	}
+	switch originHost {
+	case "localhost", "127.0.0.1", "::1":
+		return true
+	default:
+		return false
+	}
+}
+
+func defaultPortForScheme(scheme string) string {
+	switch strings.ToLower(scheme) {
+	case "http":
+		return "80"
+	case "https":
+		return "443"
+	default:
+		return ""
+	}
 }

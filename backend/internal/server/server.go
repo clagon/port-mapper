@@ -33,7 +33,7 @@ func New(addr string, logger *slog.Logger, svc apiService) *Server {
 	e.HideBanner = true
 	e.HidePort = true
 	e.Use(loggingMiddleware(logger))
-	registerRoutes(e, svc, browserToken)
+	registerRoutes(e, svc, browserToken, addr)
 
 	return &Server{addr: addr, echo: e, logger: logger, browserToken: browserToken}
 }
