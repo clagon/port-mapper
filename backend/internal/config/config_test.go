@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -113,6 +114,41 @@ func TestLoadAndSave(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestSaveKeepsExistingConfigWhenRenameFails(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.json")
+	original := []byte(`{"listen_addr":"127.0.0.1:9090","auto_discover":false}`)
+	if err := os.WriteFile(path, original, 0o600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	renameErr := errors.New("rename failed")
+	oldRenameFile := renameFile
+	renameFile = func(_, _ string) error { return renameErr }
+	t.Cleanup(func() { renameFile = oldRenameFile })
+
+	err := Save(path, Config{ListenAddr: "127.0.0.1:61234", AutoDiscover: BoolPtr(true)})
+	if !errors.Is(err, renameErr) {
+		t.Fatalf("Save() error = %v, want %v", err, renameErr)
+	}
+
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("ReadFile() error = %v", err)
+	}
+	if string(got) != string(original) {
+		t.Fatalf("config content = %q, want %q", got, original)
+	}
+
+	matches, err := filepath.Glob(filepath.Join(dir, ".config.json.tmp-*"))
+	if err != nil {
+		t.Fatalf("Glob() error = %v", err)
+	}
+	if len(matches) != 0 {
+		t.Fatalf("temporary files remain: %v", matches)
 	}
 }
 

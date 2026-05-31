@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 )
 
+var renameFile = atomicRename
+
 // FileStore は、設定値をローカルディスク上の JSON ファイルへ永続化（保存および読み込み）するためのストア実装構造体です。
 type FileStore struct {
 	Path string
@@ -61,9 +63,46 @@ func Save(path string, cfg Config) error {
 	}
 	data = append(data, '\n')
 
-	if err := os.WriteFile(path, data, 0o600); err != nil {
+	if err := writeFileAtomically(path, data, 0o600); err != nil {
 		return fmt.Errorf("write config %q: %w", path, err)
 	}
+	return nil
+}
+
+func writeFileAtomically(path string, data []byte, perm os.FileMode) error {
+	dir := filepath.Dir(path)
+	tmp, err := os.CreateTemp(dir, "."+filepath.Base(path)+".tmp-*")
+	if err != nil {
+		return err
+	}
+	tmpPath := tmp.Name()
+	cleanup := true
+	defer func() {
+		if cleanup {
+			_ = os.Remove(tmpPath)
+		}
+	}()
+
+	if err := tmp.Chmod(perm); err != nil {
+		_ = tmp.Close()
+		return err
+	}
+	if _, err := tmp.Write(data); err != nil {
+		_ = tmp.Close()
+		return err
+	}
+	if err := tmp.Sync(); err != nil {
+		_ = tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+
+	if err := renameFile(tmpPath, path); err != nil {
+		return err
+	}
+	cleanup = false
 	return nil
 }
 
