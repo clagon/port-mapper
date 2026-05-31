@@ -3,11 +3,14 @@ package upnp
 import (
 	"bytes"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/clagon/port-mapper/backend/internal/domain"
 )
 
 // SOAPClient は、ルーターの制御 URL に対して UPnP SOAP (Simple Object Access Protocol) リクエストを実行するためのクライアント構造体です。
@@ -90,6 +93,9 @@ func (c *SOAPClient) GetGenericPortMappingEntry(index int) (PortMapping, error) 
 		"NewPortMappingIndex": fmt.Sprintf("%d", index),
 	})
 	if err != nil {
+		if isNoPortMappingEntryError(err) {
+			return PortMapping{}, domain.ErrNoPortMappingEntry
+		}
 		return PortMapping{}, err
 	}
 
@@ -113,6 +119,9 @@ func (c *SOAPClient) GetGenericPortMappingEntry(index int) (PortMapping, error) 
 		return PortMapping{}, fmt.Errorf("parse soap response: %w", err)
 	}
 	if resp.Body.Fault != nil {
+		if resp.Body.Fault.IsSpecifiedArrayIndexInvalid() {
+			return PortMapping{}, domain.ErrNoPortMappingEntry
+		}
 		return PortMapping{}, resp.Body.Fault
 	}
 
@@ -205,6 +214,10 @@ type soapFault struct {
 	} `xml:"detail"`
 }
 
+func (f *soapFault) IsSpecifiedArrayIndexInvalid() bool {
+	return f != nil && f.Detail.UPnPError.Code == 713
+}
+
 func (f *soapFault) Error() string {
 	if f == nil {
 		return "soap fault"
@@ -216,6 +229,17 @@ func (f *soapFault) Error() string {
 		return "soap fault: " + f.String
 	}
 	return "soap fault"
+}
+
+func isNoPortMappingEntryError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, domain.ErrNoPortMappingEntry) {
+		return true
+	}
+	var fault *soapFault
+	return errors.As(err, &fault) && fault.IsSpecifiedArrayIndexInvalid()
 }
 
 func parseSOAPFault(data []byte) error {

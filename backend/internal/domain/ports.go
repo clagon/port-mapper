@@ -6,6 +6,9 @@ import "errors"
 // ErrNoGateway は、UPnP ゲートウェイ（ルーター）が探索プロセスで発見できなかったことを表すエラーです。
 var ErrNoGateway = errors.New("no UPnP gateway discovered")
 
+// ErrNoPortMappingEntry は、指定インデックス以降にルーター上のポートマッピングが存在しないことを表すエラーです。
+var ErrNoPortMappingEntry = errors.New("no port mapping entry")
+
 // DiscoveryClient は、ポートマッピング要求を送信するためのルーター制御エンドポイントをネットワーク上から自動検出するためのインターフェースです。
 type DiscoveryClient interface {
 	// Discover は、ネットワーク上のUPnPデバイスを探索し、適合するルーターのエンドポイント情報を返します。
