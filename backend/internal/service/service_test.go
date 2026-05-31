@@ -30,6 +30,7 @@ type fakeMapper struct {
 	externalErr error
 	addErr      error
 	deleteErr   error
+	entryErr    error
 	entries     []domain.PortMapping
 	addCalls    []domain.PortMapping
 	deleteCalls []deleteCall
@@ -54,7 +55,10 @@ func (f *fakeMapper) DeletePortMapping(protocol string, externalPort int) error 
 
 func (f *fakeMapper) GetGenericPortMappingEntry(index int) (domain.PortMapping, error) {
 	if index < 0 || index >= len(f.entries) {
-		return domain.PortMapping{}, errNoGateway
+		if f.entryErr != nil {
+			return domain.PortMapping{}, f.entryErr
+		}
+		return domain.PortMapping{}, domain.ErrNoPortMappingEntry
 	}
 	return f.entries[index], nil
 }
@@ -156,6 +160,73 @@ func TestDiscoverUpdatesStatusAndSoftNoGateway(t *testing.T) {
 				t.Fatalf("ExternalIP = %q, want %q", got.ExternalIP, tt.wantExternalIP)
 			}
 		})
+	}
+}
+
+func TestSyncActivePortsReplacesLocalMappingsAfterCompleteFetch(t *testing.T) {
+	localIP := "192.168.1.20"
+	svc := New(Options{Config: config.DefaultConfig()})
+	svc.ports = []domain.PortMapping{
+		{Protocol: "TCP", ExternalPort: 25565, InternalIP: localIP, InternalPort: 25565, Description: "manual old", LeaseDurationSeconds: 3600},
+		{Protocol: "UDP", ExternalPort: 19132, InternalIP: localIP, InternalPort: 19132, Description: "expired", LeaseDurationSeconds: 60},
+		{Protocol: "TCP", ExternalPort: 9000, InternalIP: "192.168.1.30", InternalPort: 9000, Description: "other host", LeaseDurationSeconds: 0},
+	}
+	mapper := &fakeMapper{entries: []domain.PortMapping{
+		{Protocol: "TCP", ExternalPort: 25565, InternalIP: localIP, InternalPort: 25565, Description: "manual current", LeaseDurationSeconds: 7200},
+		{Protocol: "TCP", ExternalPort: 8080, InternalIP: "192.168.1.30", InternalPort: 8080, Description: "other router entry", LeaseDurationSeconds: 0},
+	}}
+
+	svc.syncActivePorts(mapper, localIP)
+
+	got := svc.Status().Ports
+	if len(got) != 2 {
+		t.Fatalf("ports = %#v, want 2 entries", got)
+	}
+	assertHasMapping(t, got, domain.PortMapping{Protocol: "TCP", ExternalPort: 25565, InternalIP: localIP, InternalPort: 25565, Description: "manual current", LeaseDurationSeconds: 7200})
+	assertHasMapping(t, got, domain.PortMapping{Protocol: "TCP", ExternalPort: 9000, InternalIP: "192.168.1.30", InternalPort: 9000, Description: "other host", LeaseDurationSeconds: 0})
+	assertMissingMapping(t, got, "UDP", 19132)
+}
+
+func TestSyncActivePortsDoesNotMutateOnFetchFailure(t *testing.T) {
+	localIP := "192.168.1.20"
+	fetchErr := errors.New("temporary router failure")
+	svc := New(Options{Config: config.DefaultConfig()})
+	svc.ports = []domain.PortMapping{
+		{Protocol: "TCP", ExternalPort: 25565, InternalIP: localIP, InternalPort: 25565, Description: "manual old", LeaseDurationSeconds: 3600},
+	}
+	mapper := &fakeMapper{
+		entries: []domain.PortMapping{
+			{Protocol: "TCP", ExternalPort: 8080, InternalIP: localIP, InternalPort: 8080, Description: "partial", LeaseDurationSeconds: 3600},
+		},
+		entryErr: fetchErr,
+	}
+
+	svc.syncActivePorts(mapper, localIP)
+
+	got := svc.Status().Ports
+	if len(got) != 1 {
+		t.Fatalf("ports = %#v, want original entry only", got)
+	}
+	assertHasMapping(t, got, domain.PortMapping{Protocol: "TCP", ExternalPort: 25565, InternalIP: localIP, InternalPort: 25565, Description: "manual old", LeaseDurationSeconds: 3600})
+	assertMissingMapping(t, got, "TCP", 8080)
+}
+
+func assertHasMapping(t *testing.T, mappings []domain.PortMapping, want domain.PortMapping) {
+	t.Helper()
+	for _, got := range mappings {
+		if got == want {
+			return
+		}
+	}
+	t.Fatalf("mapping %#v not found in %#v", want, mappings)
+}
+
+func assertMissingMapping(t *testing.T, mappings []domain.PortMapping, protocol string, externalPort int) {
+	t.Helper()
+	for _, got := range mappings {
+		if sameMappingIdentity(got.Protocol, got.ExternalPort, protocol, externalPort) {
+			t.Fatalf("mapping %s/%d unexpectedly found in %#v", protocol, externalPort, mappings)
+		}
 	}
 }
 

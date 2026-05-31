@@ -1,11 +1,14 @@
 package upnp
 
 import (
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/clagon/port-mapper/backend/internal/domain"
 )
 
 func TestSOAPEnvelope(t *testing.T) {
@@ -142,6 +145,38 @@ func TestSOAPClientDefaultTimeout(t *testing.T) {
 				t.Fatalf("client timeout = %v, want > 0", got.Timeout)
 			}
 		})
+	}
+}
+
+func TestSOAPGenericPortMappingEntryIndexInvalid(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(`<?xml version="1.0"?>
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <s:Fault>
+      <faultcode>s:Client</faultcode>
+      <faultstring>UPnPError</faultstring>
+      <detail>
+        <UPnPError xmlns="urn:schemas-upnp-org:control-1-0">
+          <errorCode>713</errorCode>
+          <errorDescription>SpecifiedArrayIndexInvalid</errorDescription>
+        </UPnPError>
+      </detail>
+    </s:Fault>
+  </s:Body>
+</s:Envelope>`))
+	}))
+	defer server.Close()
+
+	c := &SOAPClient{
+		Endpoint:    server.URL,
+		ServiceType: "urn:schemas-upnp-org:service:WANIPConnection:2",
+		HTTPClient:  server.Client(),
+	}
+	_, err := c.GetGenericPortMappingEntry(0)
+	if !errors.Is(err, domain.ErrNoPortMappingEntry) {
+		t.Fatalf("GetGenericPortMappingEntry() error = %v, want ErrNoPortMappingEntry", err)
 	}
 }
 

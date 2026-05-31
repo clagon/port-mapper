@@ -298,6 +298,20 @@ func removeMapping(existing []domain.PortMapping, protocol string, externalPort 
 	return filtered
 }
 
+func replaceMappingsForInternalIP(existing []domain.PortMapping, localIP string, synced []domain.PortMapping) []domain.PortMapping {
+	filtered := existing[:0]
+	for _, current := range existing {
+		if current.InternalIP == localIP {
+			continue
+		}
+		filtered = append(filtered, current)
+	}
+	for _, entry := range synced {
+		filtered = upsertMapping(filtered, entry)
+	}
+	return filtered
+}
+
 func sameMappingKey(a, b domain.PortMapping) bool {
 	return sameMappingIdentity(a.Protocol, a.ExternalPort, b.Protocol, b.ExternalPort)
 }
@@ -401,31 +415,34 @@ func (s *Service) syncActivePorts(mapper domain.PortMapper, localIP string) {
 		return
 	}
 
+	const maxPortMappingEntries = 256
+
 	var syncedPorts []domain.PortMapping
-	for i := 0; ; i++ {
+	for i := 0; i < maxPortMappingEntries; i++ {
 		entry, err := mapper.GetGenericPortMappingEntry(i)
 		if err != nil {
-			// インデックス範囲外など、ルーターがこれ以上エントリーを持っていない場合は走査を終了
-			if s.logger != nil {
-				s.logger.Debug("finished fetching port mapping entries from router", "index", i, "error", err)
+			if errors.Is(err, domain.ErrNoPortMappingEntry) {
+				if s.logger != nil {
+					s.logger.Debug("finished fetching port mapping entries from router", "index", i)
+				}
+				s.mu.Lock()
+				s.ports = replaceMappingsForInternalIP(s.ports, localIP, syncedPorts)
+				s.mu.Unlock()
+				return
 			}
-			break
+			if s.logger != nil {
+				s.logger.Warn("failed to fetch port mapping entries from router", "index", i, "error", err)
+			}
+			return
 		}
 
 		// このローカルPCのIPアドレス宛の転送ルールのみを抽出
 		if entry.InternalIP == localIP {
 			syncedPorts = append(syncedPorts, entry)
 		}
-
-		// 安全のための上限 (無限ループ防止)
-		if i >= 256 {
-			break
-		}
 	}
 
-	s.mu.Lock()
-	for _, entry := range syncedPorts {
-		s.ports = upsertMapping(s.ports, entry)
+	if s.logger != nil {
+		s.logger.Warn("stopped fetching port mapping entries at safety limit", "limit", maxPortMappingEntries)
 	}
-	s.mu.Unlock()
 }
