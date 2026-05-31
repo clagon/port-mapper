@@ -213,7 +213,8 @@ func parseAllowedUPnPURL(rawURL string) (*url.URL, error) {
 		return nil, fmt.Errorf("missing url host")
 	}
 	host := u.Hostname()
-	ip := net.ParseIP(host)
+	ipHost := stripIPv6Zone(host)
+	ip := net.ParseIP(ipHost)
 	if ip == nil {
 		return nil, fmt.Errorf("url host %q is not an IP address", host)
 	}
@@ -231,4 +232,12 @@ func isAllowedUPnPIP(ip net.IP) bool {
 		return ip4.IsPrivate() || ip4.IsLinkLocalUnicast()
 	}
 	return ip.IsPrivate() || ip.IsLinkLocalUnicast()
+}
+
+func stripIPv6Zone(host string) string {
+	addr, _, ok := strings.Cut(host, "%")
+	if ok {
+		return addr
+	}
+	return host
 }

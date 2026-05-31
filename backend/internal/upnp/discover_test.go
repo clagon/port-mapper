@@ -196,6 +196,7 @@ func TestParseAllowedUPnPURL(t *testing.T) {
 		{name: "link local ipv4", rawURL: "http://169.254.10.1/root.xml"},
 		{name: "unique local ipv6", rawURL: "http://[fd00::1]:1900/root.xml"},
 		{name: "link local ipv6", rawURL: "http://[fe80::1]:1900/root.xml"},
+		{name: "scoped link local ipv6", rawURL: "http://[fe80::1%25eth0]:1900/root.xml"},
 		{name: "https rejected", rawURL: "https://192.168.1.1/root.xml", wantErr: true},
 		{name: "hostname rejected", rawURL: "http://router.local/root.xml", wantErr: true},
 		{name: "loopback rejected", rawURL: "http://127.0.0.1/root.xml", wantErr: true},
