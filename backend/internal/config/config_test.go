@@ -152,6 +152,56 @@ func TestSaveKeepsExistingConfigWhenRenameFails(t *testing.T) {
 	}
 }
 
+func TestSavePreservesConfigSymlink(t *testing.T) {
+	dir := t.TempDir()
+	targetDir := filepath.Join(dir, "managed")
+	if err := os.Mkdir(targetDir, 0o755); err != nil {
+		t.Fatalf("Mkdir() error = %v", err)
+	}
+
+	targetPath := filepath.Join(targetDir, "config.json")
+	if err := os.WriteFile(targetPath, []byte(`{"listen_addr":"127.0.0.1:9090","auto_discover":false}`), 0o600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	linkPath := filepath.Join(dir, "config.json")
+	linkTarget := filepath.Join("managed", "config.json")
+	if err := os.Symlink(linkTarget, linkPath); err != nil {
+		t.Skipf("Symlink() error = %v", err)
+	}
+
+	if err := Save(linkPath, Config{ListenAddr: "127.0.0.1:61234", AutoDiscover: BoolPtr(true)}); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	info, err := os.Lstat(linkPath)
+	if err != nil {
+		t.Fatalf("Lstat() error = %v", err)
+	}
+	if info.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf("config path mode = %v, want symlink", info.Mode())
+	}
+
+	gotTarget, err := os.Readlink(linkPath)
+	if err != nil {
+		t.Fatalf("Readlink() error = %v", err)
+	}
+	if gotTarget != linkTarget {
+		t.Fatalf("symlink target = %q, want %q", gotTarget, linkTarget)
+	}
+
+	got, err := Load(targetPath)
+	if err != nil {
+		t.Fatalf("Load() target error = %v", err)
+	}
+	if got.ListenAddr != "127.0.0.1:61234" {
+		t.Fatalf("target ListenAddr = %q, want %q", got.ListenAddr, "127.0.0.1:61234")
+	}
+	if got.AutoDiscover == nil || !*got.AutoDiscover {
+		t.Fatalf("target AutoDiscover = %v, want true", got.AutoDiscover)
+	}
+}
+
 func TestFileStoreLoadAndSave(t *testing.T) {
 	tests := []struct {
 		name             string
