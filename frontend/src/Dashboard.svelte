@@ -2,7 +2,9 @@
   import { createEventDispatcher } from 'svelte';
   export let status;
   export let refresh;
+  export let discover;
   export let busy = false;
+  export let discovering = false;
 
   const dispatch = createEventDispatcher();
 
@@ -34,23 +36,39 @@
 <!-- Main Content Canvas -->
 <main class="flex-grow w-full max-w-7xl mx-auto px-margin-page py-8 flex flex-col gap-gutter">
   <!-- Header -->
-  <header class="flex justify-between items-end mb-4">
+  <header class="flex flex-col gap-4 md:flex-row md:justify-between md:items-end mb-4">
     <div>
       <h1 class="font-display-lg text-display-lg text-text-main mb-2">ポート開放の管理</h1>
       <p class="font-body-md text-text-muted">Portoは、UPnPを利用してPCのポートを一時的に開放し、ゲームやアプリを外部と安全に共有するためのツールです。</p>
     </div>
-    <button 
-      class="bg-surface-container-low text-primary px-4 py-2 rounded-full font-label-sm hover:bg-surface-container transition-colors duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed" 
-      on:click={refresh}
-      disabled={busy}
-    >
-      {#if busy}
-        <span class="material-symbols-outlined text-sm animate-spin">sync</span>
-        更新中...
-      {:else}
-        更新
-      {/if}
-    </button>
+    <div class="flex flex-wrap gap-2">
+      <button
+        class="bg-surface-container-low text-primary px-4 py-2 rounded-full font-label-sm hover:bg-surface-container transition-colors duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        on:click={refresh}
+        disabled={busy}
+      >
+        {#if busy && !discovering}
+          <span class="material-symbols-outlined text-sm animate-spin">sync</span>
+          更新中...
+        {:else}
+          <span class="material-symbols-outlined text-sm">sync</span>
+          更新
+        {/if}
+      </button>
+      <button
+        class="bg-surface-container-low text-primary px-4 py-2 rounded-full font-label-sm hover:bg-surface-container transition-colors duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        on:click={discover}
+        disabled={busy}
+      >
+        {#if discovering}
+          <span class="material-symbols-outlined text-sm animate-spin">travel_explore</span>
+          再探索中...
+        {:else}
+          <span class="material-symbols-outlined text-sm">travel_explore</span>
+          再探索
+        {/if}
+      </button>
+    </div>
   </header>
 
   <!-- Top Bento Grid: Hero & Main Action -->
@@ -69,7 +87,7 @@
           <div class="inline-flex items-center gap-2 bg-surface-container-low px-4 py-2 rounded-full border border-surface-dim mb-6">
             {#if busy}
               <div class="w-3 h-3 rounded-full bg-primary animate-pulse"></div>
-              <span class="font-label-sm text-label-sm text-text-main">ルーター探索中...</span>
+              <span class="font-label-sm text-label-sm text-text-main">{discovering ? 'ルーター探索中...' : '状態更新中...'}</span>
             {:else}
               <div class="w-3 h-3 rounded-full {status?.discovered ? 'bg-status-active animate-pulse' : 'bg-status-warning'}"></div>
               <span class="font-label-sm text-label-sm text-text-main">{status?.discovered ? 'システム準備完了' : 'ルーター未検出'}</span>

@@ -23,12 +23,12 @@
   let isAddModalOpen = false;
   let isSettingsModalOpen = false;
   let editingPort = null;
+  let isDiscovering = false;
 
   async function refresh() {
     error = '';
     busy.set(true);
     try {
-      await api.discover();
       const [nextStatus, nextSettings] = await Promise.all([api.status(), api.getSettings()]);
       status.set(nextStatus);
       settings.set(nextSettings);
@@ -36,6 +36,24 @@
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
     } finally {
+      busy.set(false);
+    }
+  }
+
+  async function discover() {
+    error = '';
+    busy.set(true);
+    isDiscovering = true;
+    try {
+      const nextStatus = await api.discover();
+      const nextSettings = await api.getSettings();
+      status.set(nextStatus);
+      settings.set(nextSettings);
+      form = nextSettings;
+    } catch (e) {
+      error = e instanceof Error ? e.message : String(e);
+    } finally {
+      isDiscovering = false;
       busy.set(false);
     }
   }
@@ -152,7 +170,9 @@
 <Dashboard
   status={$status}
   busy={$busy}
+  discovering={isDiscovering}
   refresh={refresh}
+  discover={discover}
   on:addPort={() => { editingPort = null; isAddModalOpen = true; }}
   on:editPort={(event) => { editingPort = event.detail; isAddModalOpen = true; }}
   on:closePort={closePort}
