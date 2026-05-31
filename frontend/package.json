@@ -10,7 +10,7 @@
     "postbuild": "node scripts/ensure-backend-assets-keep.mjs",
     "preview": "vite preview",
     "lint": "eslint .",
-    "test": "node scripts/check-refresh-contract.mjs"
+    "check:refresh-contract": "node scripts/check-refresh-contract.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
